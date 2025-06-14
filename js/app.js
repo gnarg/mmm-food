@@ -15,23 +15,56 @@ function foodTracker() {
             alcohol: 0
         },
         
+        // Additional fat percentage for protein/carbs
+        additionalFatPercent: 15,
+        
         // UI state
         showSettings: false,
         
-        // Calorie constants
-        PROTEIN_CALORIES: 133.75,  // 25g protein + 3.75g fat
-        CARB_CALORIES: 133.75,     // 25g carbs + 3.75g fat
-        FAT_CALORIES: 117,         // 13g fat
-        ALCOHOL_CALORIES: 105,     // 15g alcohol
+        // Base serving sizes
+        PROTEIN_GRAMS: 25,
+        CARB_GRAMS: 25,
+        FAT_GRAMS: 13,
+        ALCOHOL_GRAMS: 15,
+        
+        // Calories per gram
+        PROTEIN_CAL_PER_GRAM: 4,
+        CARB_CAL_PER_GRAM: 4,
+        FAT_CAL_PER_GRAM: 9,
+        ALCOHOL_CAL_PER_GRAM: 7,
         
         // Computed property for total calories
         get totalCalories() {
-            return Math.round(
-                this.protein * this.PROTEIN_CALORIES +
-                this.carbs * this.CARB_CALORIES +
-                this.fat * this.FAT_CALORIES +
-                this.alcohol * this.ALCOHOL_CALORIES
-            );
+            const additionalFatFactor = this.additionalFatPercent / 100;
+            const proteinCalories = this.protein * (this.PROTEIN_GRAMS * this.PROTEIN_CAL_PER_GRAM + 
+                                                   this.PROTEIN_GRAMS * additionalFatFactor * this.FAT_CAL_PER_GRAM);
+            const carbCalories = this.carbs * (this.CARB_GRAMS * this.CARB_CAL_PER_GRAM + 
+                                              this.CARB_GRAMS * additionalFatFactor * this.FAT_CAL_PER_GRAM);
+            const fatCalories = this.fat * this.FAT_GRAMS * this.FAT_CAL_PER_GRAM;
+            const alcoholCalories = this.alcohol * this.ALCOHOL_GRAMS * this.ALCOHOL_CAL_PER_GRAM;
+            
+            return Math.round(proteinCalories + carbCalories + fatCalories + alcoholCalories);
+        },
+        
+        // Helper methods for calorie calculations
+        getProteinCaloriesPerServing() {
+            const additionalFatFactor = this.additionalFatPercent / 100;
+            return this.PROTEIN_GRAMS * this.PROTEIN_CAL_PER_GRAM + 
+                   this.PROTEIN_GRAMS * additionalFatFactor * this.FAT_CAL_PER_GRAM;
+        },
+        
+        getCarbCaloriesPerServing() {
+            const additionalFatFactor = this.additionalFatPercent / 100;
+            return this.CARB_GRAMS * this.CARB_CAL_PER_GRAM + 
+                   this.CARB_GRAMS * additionalFatFactor * this.FAT_CAL_PER_GRAM;
+        },
+        
+        getFatCaloriesPerServing() {
+            return this.FAT_GRAMS * this.FAT_CAL_PER_GRAM;
+        },
+        
+        getAlcoholCaloriesPerServing() {
+            return this.ALCOHOL_GRAMS * this.ALCOHOL_CAL_PER_GRAM;
         },
         
         // Initialize component
@@ -87,11 +120,18 @@ function foodTracker() {
             if (targetsData) {
                 this.targets = JSON.parse(targetsData);
             }
+            
+            // Load additional fat percentage
+            const fatPercentData = localStorage.getItem('mmm-food-fat-percent');
+            if (fatPercentData) {
+                this.additionalFatPercent = parseFloat(fatPercentData);
+            }
         },
         
         // Save settings
         saveSettings() {
             localStorage.setItem('mmm-food-targets', JSON.stringify(this.targets));
+            localStorage.setItem('mmm-food-fat-percent', this.additionalFatPercent.toString());
             this.showSettings = false;
         },
         
