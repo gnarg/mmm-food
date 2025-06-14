@@ -1,0 +1,18 @@
+{
+  "name": "Mmm Food - Macro Tracker",
+  "short_name": "Mmm Food",
+  "description": "A mobile-friendly food macro tracker for protein, carbs, fat, and alcohol",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f3f4f6",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "categories": ["health", "lifestyle"],
+  "icons": [
+    {
+      "src": "icons/food-svgrepo-com.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
