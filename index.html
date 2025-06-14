@@ -36,12 +36,14 @@
                     <div class="flex justify-between items-center">
                         <div>
                             <h3 class="font-semibold text-gray-800">Protein</h3>
-                            <p class="text-sm text-gray-600" x-text="protein + ' servings'"></p>
+                            <p class="text-sm text-gray-600" x-text="'Target: ' + targets.protein + ' servings'"></p>
                         </div>
                         <div class="flex items-center space-x-3">
                             <button @click="decrementMacro('protein')" 
                                     class="bg-red-500 text-white w-12 h-12 rounded-full text-xl font-bold">-</button>
-                            <span class="text-2xl font-bold w-8 text-center" x-text="protein"></span>
+                            <span class="text-2xl font-bold w-8 text-center" 
+                                  :class="protein > targets.protein ? 'text-red-400' : 'text-gray-800'" 
+                                  x-text="protein"></span>
                             <button @click="incrementMacro('protein')" 
                                     class="bg-green-500 text-white w-12 h-12 rounded-full text-xl font-bold">+</button>
                         </div>
@@ -53,12 +55,14 @@
                     <div class="flex justify-between items-center">
                         <div>
                             <h3 class="font-semibold text-gray-800">Carbohydrates</h3>
-                            <p class="text-sm text-gray-600" x-text="carbs + ' servings'"></p>
+                            <p class="text-sm text-gray-600" x-text="'Target: ' + targets.carbs + ' servings'"></p>
                         </div>
                         <div class="flex items-center space-x-3">
                             <button @click="decrementMacro('carbs')" 
                                     class="bg-red-500 text-white w-12 h-12 rounded-full text-xl font-bold">-</button>
-                            <span class="text-2xl font-bold w-8 text-center" x-text="carbs"></span>
+                            <span class="text-2xl font-bold w-8 text-center" 
+                                  :class="carbs > targets.carbs ? 'text-red-400' : 'text-gray-800'" 
+                                  x-text="carbs"></span>
                             <button @click="incrementMacro('carbs')" 
                                     class="bg-green-500 text-white w-12 h-12 rounded-full text-xl font-bold">+</button>
                         </div>
@@ -70,12 +74,14 @@
                     <div class="flex justify-between items-center">
                         <div>
                             <h3 class="font-semibold text-gray-800">Fat</h3>
-                            <p class="text-sm text-gray-600" x-text="fat + ' servings'"></p>
+                            <p class="text-sm text-gray-600" x-text="'Target: ' + targets.fat + ' servings'"></p>
                         </div>
                         <div class="flex items-center space-x-3">
                             <button @click="decrementMacro('fat')" 
                                     class="bg-red-500 text-white w-12 h-12 rounded-full text-xl font-bold">-</button>
-                            <span class="text-2xl font-bold w-8 text-center" x-text="fat"></span>
+                            <span class="text-2xl font-bold w-8 text-center" 
+                                  :class="fat > targets.fat ? 'text-red-400' : 'text-gray-800'" 
+                                  x-text="fat"></span>
                             <button @click="incrementMacro('fat')" 
                                     class="bg-green-500 text-white w-12 h-12 rounded-full text-xl font-bold">+</button>
                         </div>
@@ -87,12 +93,14 @@
                     <div class="flex justify-between items-center">
                         <div>
                             <h3 class="font-semibold text-gray-800">Alcohol</h3>
-                            <p class="text-sm text-gray-600" x-text="alcohol + ' servings'"></p>
+                            <p class="text-sm text-gray-600" x-text="'Target: ' + targets.alcohol + ' servings'"></p>
                         </div>
                         <div class="flex items-center space-x-3">
                             <button @click="decrementMacro('alcohol')" 
                                     class="bg-red-500 text-white w-12 h-12 rounded-full text-xl font-bold">-</button>
-                            <span class="text-2xl font-bold w-8 text-center" x-text="alcohol"></span>
+                            <span class="text-2xl font-bold w-8 text-center" 
+                                  :class="alcohol > targets.alcohol ? 'text-red-400' : 'text-gray-800'" 
+                                  x-text="alcohol"></span>
                             <button @click="incrementMacro('alcohol')" 
                                     class="bg-green-500 text-white w-12 h-12 rounded-full text-xl font-bold">+</button>
                         </div>
