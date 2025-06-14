@@ -37,7 +37,6 @@ function foodTracker() {
         // Initialize component
         init() {
             this.loadData();
-            this.setupMidnightReset();
         },
         
         // Increment macro serving
@@ -54,8 +53,8 @@ function foodTracker() {
             }
         },
         
-        // Save current data to localStorage and PocketBase
-        async saveData() {
+        // Save current data to localStorage
+        saveData() {
             const data = {
                 protein: this.protein,
                 carbs: this.carbs,
@@ -64,18 +63,14 @@ function foodTracker() {
                 date: new Date().toDateString()
             };
             
-            // Save to localStorage as backup
             localStorage.setItem('mmm-food-daily', JSON.stringify(data));
-            
-            // TODO: Save to PocketBase
-            // await this.saveToPocketBase(data);
         },
         
-        // Load data from localStorage and PocketBase
-        async loadData() {
+        // Load data from localStorage
+        loadData() {
             const today = new Date().toDateString();
             
-            // Load from localStorage first
+            // Load daily data
             const localData = localStorage.getItem('mmm-food-daily');
             if (localData) {
                 const data = JSON.parse(localData);
@@ -92,69 +87,21 @@ function foodTracker() {
             if (targetsData) {
                 this.targets = JSON.parse(targetsData);
             }
-            
-            // TODO: Load from PocketBase
-            // await this.loadFromPocketBase();
         },
         
         // Save settings
         saveSettings() {
             localStorage.setItem('mmm-food-targets', JSON.stringify(this.targets));
-            // TODO: Save to PocketBase
             this.showSettings = false;
         },
         
-        // Reset daily counts at midnight
-        setupMidnightReset() {
-            const now = new Date();
-            const tomorrow = new Date(now);
-            tomorrow.setDate(now.getDate() + 1);
-            tomorrow.setHours(0, 0, 0, 0);
-            
-            const timeUntilMidnight = tomorrow.getTime() - now.getTime();
-            
-            setTimeout(() => {
-                this.resetDaily();
-                // Set up recurring daily reset
-                setInterval(() => {
-                    this.resetDaily();
-                }, 24 * 60 * 60 * 1000); // 24 hours
-            }, timeUntilMidnight);
-        },
-        
-        // Reset daily servings
+        // Manual reset of daily servings
         resetDaily() {
             this.protein = 0;
             this.carbs = 0;
             this.fat = 0;
             this.alcohol = 0;
             this.saveData();
-        },
-        
-        // PocketBase integration methods (to be implemented)
-        async saveToPocketBase(data) {
-            // TODO: Implement PocketBase save
-            try {
-                // const response = await fetch('https://db.guymon.family/api/collections/daily_intake/records', {
-                //     method: 'POST',
-                //     headers: {
-                //         'Content-Type': 'application/json',
-                //     },
-                //     body: JSON.stringify(data)
-                // });
-            } catch (error) {
-                console.error('Failed to save to PocketBase:', error);
-            }
-        },
-        
-        async loadFromPocketBase() {
-            // TODO: Implement PocketBase load
-            try {
-                // const response = await fetch('https://db.guymon.family/api/collections/daily_intake/records');
-                // const data = await response.json();
-            } catch (error) {
-                console.error('Failed to load from PocketBase:', error);
-            }
         }
     };
 }
