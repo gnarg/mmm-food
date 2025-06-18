@@ -43,6 +43,7 @@
             <div class="bg-white rounded-lg shadow-md p-6 mb-6 text-center">
                 <h2 class="text-lg font-semibold text-gray-700 mb-2">Today's Calories</h2>
                 <div class="text-4xl font-bold text-blue-600" x-text="totalCalories"></div>
+                <p class="text-sm text-gray-600" x-text="'Target: ' + targetCalories"></p>
                 <button @click="resetDaily()" 
                         class="mt-4 bg-gray-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-600">
                     Reset Day
@@ -176,7 +177,7 @@
                         <div>Alcohol: <span x-text="Math.round(targets.alcohol * getAlcoholCaloriesPerServing())"></span> cal</div>
                     </div>
                     <div class="font-bold mt-2">
-                        Total: <span x-text="Math.round(targets.protein * getProteinCaloriesPerServing() + targets.carbs * getCarbCaloriesPerServing() + targets.fat * getFatCaloriesPerServing() + targets.alcohol * getAlcoholCaloriesPerServing())"></span> cal
+                        Total: <span x-text="targetCalories"></span> cal
                     </div>
                 </div>
 

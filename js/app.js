@@ -45,6 +45,10 @@ function foodTracker() {
             
             return Math.round(proteinCalories + carbCalories + fatCalories + alcoholCalories);
         },
+
+        get targetCalories() {
+            return Math.round(this.targets.protein * this.getProteinCaloriesPerServing() + this.targets.carbs * this.getCarbCaloriesPerServing() + this.targets.fat * this.getFatCaloriesPerServing() + this.targets.alcohol * this.getAlcoholCaloriesPerServing());
+        },
         
         // Helper methods for calorie calculations
         getProteinCaloriesPerServing() {
