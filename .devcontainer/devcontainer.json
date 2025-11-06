@@ -14,7 +14,7 @@
 	// "forwardPorts": [],
 
 	// Use 'postCreateCommand' to run commands after the container is created.
-	"postCreateCommand": "mkdir ~/.config/nix && echo 'experimental-features = nix-command flakes' > ~/.config/nix/nix.conf"
+	"postCreateCommand": "mkdir ~/.config/nix && echo 'experimental-features = nix-command flakes' > ~/.config/nix/nix.conf && nix profile install nixpkgs#direnv && echo 'eval \"$(direnv hook bash)\"' >> /home/codespace/.bashrc"
 
 	// Configure tool-specific properties.
 	// "customizations": {},
