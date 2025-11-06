@@ -49,6 +49,26 @@ function foodTracker() {
         get targetCalories() {
             return Math.round(this.targets.protein * this.getProteinCaloriesPerServing() + this.targets.carbs * this.getCarbCaloriesPerServing() + this.targets.fat * this.getFatCaloriesPerServing() + this.targets.alcohol * this.getAlcoholCaloriesPerServing());
         },
+
+        // Computed properties for grams consumed
+        get proteinGrams() {
+            return Math.round(this.protein * this.PROTEIN_GRAMS);
+        },
+
+        get carbGrams() {
+            return Math.round(this.carbs * this.CARB_GRAMS);
+        },
+
+        get fatGrams() {
+            const additionalFatFactor = this.additionalFatPercent / 100;
+            const directFat = this.fat * this.FAT_GRAMS;
+            const additionalFat = (this.protein * this.PROTEIN_GRAMS + this.carbs * this.CARB_GRAMS) * additionalFatFactor;
+            return Math.round(directFat + additionalFat);
+        },
+
+        get alcoholGrams() {
+            return Math.round(this.alcohol * this.ALCOHOL_GRAMS);
+        },
         
         // Helper methods for calorie calculations
         getProteinCaloriesPerServing() {
