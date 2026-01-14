@@ -43,6 +43,10 @@ function foodTracker() {
         // Additional fat percentage for protein/carbs
         additionalFatPercent: 15,
 
+        // Additional settings
+        calorieExpenditure: 0,
+        deltaLbPerWeek: 0,
+
         // UI state
         showSettings: false,
         
@@ -303,6 +307,17 @@ function foodTracker() {
             if (fatPercentData) {
                 this.additionalFatPercent = parseFloat(fatPercentData);
             }
+
+            // Load additional settings
+            const calorieExpenditureData = localStorage.getItem('mmm-food-calorie-expenditure');
+            if (calorieExpenditureData) {
+                this.calorieExpenditure = parseFloat(calorieExpenditureData);
+            }
+
+            const deltaLbPerWeekData = localStorage.getItem('mmm-food-delta-lb-per-week');
+            if (deltaLbPerWeekData) {
+                this.deltaLbPerWeek = parseFloat(deltaLbPerWeekData);
+            }
         },
 
         // Handle date change - auto-save previous day's data
@@ -387,9 +402,15 @@ function foodTracker() {
                 // Update additional fat percent
                 this.additionalFatPercent = parseFloat(settingsMap['additional_fat_percent'] || this.additionalFatPercent);
 
+                // Update additional settings
+                this.calorieExpenditure = parseFloat(settingsMap['calorie_expenditure'] || 0);
+                this.deltaLbPerWeek = parseFloat(settingsMap['delta_lb_per_week'] || 0);
+
                 // Cache to localStorage
                 localStorage.setItem('mmm-food-targets', JSON.stringify(this.targets));
                 localStorage.setItem('mmm-food-fat-percent', this.additionalFatPercent.toString());
+                localStorage.setItem('mmm-food-calorie-expenditure', this.calorieExpenditure.toString());
+                localStorage.setItem('mmm-food-delta-lb-per-week', this.deltaLbPerWeek.toString());
 
                 console.log('Settings loaded from PocketBase');
             } catch (error) {
@@ -409,7 +430,9 @@ function foodTracker() {
                 { key: 'carbohydrate_servings', value: this.targets.carbs.toString() },
                 { key: 'fat_servings', value: this.targets.fat.toString() },
                 { key: 'alcohol_servings', value: this.targets.alcohol.toString() },
-                { key: 'additional_fat_percent', value: this.additionalFatPercent.toString() }
+                { key: 'additional_fat_percent', value: this.additionalFatPercent.toString() },
+                { key: 'calorie_expenditure', value: this.calorieExpenditure.toString() },
+                { key: 'delta_lb_per_week', value: this.deltaLbPerWeek.toString() }
             ];
 
             // Save each setting (upsert)
@@ -457,6 +480,8 @@ function foodTracker() {
                 // Also save to localStorage (cache)
                 localStorage.setItem('mmm-food-targets', JSON.stringify(this.targets));
                 localStorage.setItem('mmm-food-fat-percent', this.additionalFatPercent.toString());
+                localStorage.setItem('mmm-food-calorie-expenditure', this.calorieExpenditure.toString());
+                localStorage.setItem('mmm-food-delta-lb-per-week', this.deltaLbPerWeek.toString());
 
                 this.showSettings = false;
                 console.log('Settings saved successfully');
