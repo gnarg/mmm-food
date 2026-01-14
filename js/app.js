@@ -9,6 +9,8 @@ function foodTracker() {
         isAuthenticated: false,
         authError: null,
         isLoading: true,
+        resetError: null,
+        isResetting: false,
 
         // Current servings
         protein: 0,
@@ -289,12 +291,37 @@ function foodTracker() {
         },
         
         // Manual reset of daily servings
-        resetDaily() {
-            this.protein = 0;
-            this.carbs = 0;
-            this.fat = 0;
-            this.alcohol = 0;
-            this.saveData();
+        async resetDaily() {
+            // Clear any previous error
+            this.resetError = null;
+            this.isResetting = true;
+
+            try {
+                // Save current state to PocketBase
+                const macroData = {
+                    protein: this.protein,
+                    carbohydrate: this.carbs,  // Note: PocketBase uses "carbohydrate"
+                    fat: this.fat,
+                    alcohol: this.alcohol,
+                    user_id: this.user.id
+                };
+
+                await pb.collection('mmm_macros').create(macroData);
+
+                // Only reset client state if save succeeded
+                this.protein = 0;
+                this.carbs = 0;
+                this.fat = 0;
+                this.alcohol = 0;
+                this.saveData();
+
+                console.log('Day reset successfully and saved to PocketBase');
+            } catch (error) {
+                console.error('Failed to save to PocketBase:', error);
+                this.resetError = 'Unable to sync with server. Please check your connection and try again.';
+            } finally {
+                this.isResetting = false;
+            }
         }
     };
 }
