@@ -14,6 +14,12 @@ function foodTracker() {
         autoSaveMessage: null,
         dateChangeWarning: null,
 
+        // Settings sync state
+        settingsError: null,
+        isLoadingSettings: false,
+        isSavingSettings: false,
+        usingCachedSettings: false,
+
         // Current servings
         protein: 0,
         carbs: 0,
@@ -118,7 +124,9 @@ function foodTracker() {
 
             // Load data if authenticated
             if (this.isAuthenticated) {
-                this.loadData();
+                await this.loadData();
+                // Load settings from PocketBase (with localStorage fallback)
+                await this.loadSettingsFromPocketBase();
             }
 
             this.isLoading = false;
@@ -345,12 +353,113 @@ function foodTracker() {
                 this.dateChangeWarning = `Data from ${oldData.date} couldn't be saved. Connect to internet and click "Reset Day" to save.`;
             }
         },
-        
+
+        // Load settings from PocketBase
+        async loadSettingsFromPocketBase() {
+            this.isLoadingSettings = true;
+            this.settingsError = null;
+            this.usingCachedSettings = false;
+
+            try {
+                // Fetch all settings for the current user
+                const records = await pb.collection('mmm_settings').getFullList({
+                    filter: `user_id = "${this.user.id}"`
+                });
+
+                // Map PocketBase keys to app properties
+                const settingsMap = {};
+                records.forEach(record => {
+                    settingsMap[record.key] = record.value;
+                });
+
+                // Update targets
+                this.targets.protein = parseInt(settingsMap['protein_servings'] || this.targets.protein);
+                this.targets.carbs = parseInt(settingsMap['carbohydrate_servings'] || this.targets.carbs);
+                this.targets.fat = parseInt(settingsMap['fat_servings'] || this.targets.fat);
+                this.targets.alcohol = parseInt(settingsMap['alcohol_servings'] || this.targets.alcohol);
+
+                // Update additional fat percent
+                this.additionalFatPercent = parseFloat(settingsMap['additional_fat_percent'] || this.additionalFatPercent);
+
+                // Cache to localStorage
+                localStorage.setItem('mmm-food-targets', JSON.stringify(this.targets));
+                localStorage.setItem('mmm-food-fat-percent', this.additionalFatPercent.toString());
+
+                console.log('Settings loaded from PocketBase');
+            } catch (error) {
+                console.error('Failed to load settings from PocketBase:', error);
+                this.usingCachedSettings = true;
+                // Fall back to localStorage (already loaded in loadData)
+            } finally {
+                this.isLoadingSettings = false;
+            }
+        },
+
+        // Save settings to PocketBase
+        async saveSettingsToPocketBase() {
+            // Map of app properties to PocketBase keys
+            const settingsToSave = [
+                { key: 'protein_servings', value: this.targets.protein.toString() },
+                { key: 'carbohydrate_servings', value: this.targets.carbs.toString() },
+                { key: 'fat_servings', value: this.targets.fat.toString() },
+                { key: 'alcohol_servings', value: this.targets.alcohol.toString() },
+                { key: 'additional_fat_percent', value: this.additionalFatPercent.toString() }
+            ];
+
+            // Save each setting (upsert)
+            for (const setting of settingsToSave) {
+                try {
+                    // Try to find existing record
+                    const existing = await pb.collection('mmm_settings').getFirstListItem(
+                        `user_id = "${this.user.id}" && key = "${setting.key}"`
+                    ).catch(() => null);
+
+                    if (existing) {
+                        // Update existing
+                        await pb.collection('mmm_settings').update(existing.id, {
+                            value: setting.value
+                        });
+                    } else {
+                        // Create new
+                        await pb.collection('mmm_settings').create({
+                            user_id: this.user.id,
+                            key: setting.key,
+                            value: setting.value
+                        });
+                    }
+                } catch (error) {
+                    console.error(`Failed to save setting ${setting.key}:`, error);
+                    throw error; // Re-throw to handle in saveSettings
+                }
+            }
+        },
+
+        // Refresh settings from PocketBase (called when opening settings view)
+        async refreshSettings() {
+            await this.loadSettingsFromPocketBase();
+        },
+
         // Save settings
-        saveSettings() {
-            localStorage.setItem('mmm-food-targets', JSON.stringify(this.targets));
-            localStorage.setItem('mmm-food-fat-percent', this.additionalFatPercent.toString());
-            this.showSettings = false;
+        async saveSettings() {
+            this.isSavingSettings = true;
+            this.settingsError = null;
+
+            try {
+                // Save to PocketBase first
+                await this.saveSettingsToPocketBase();
+
+                // Also save to localStorage (cache)
+                localStorage.setItem('mmm-food-targets', JSON.stringify(this.targets));
+                localStorage.setItem('mmm-food-fat-percent', this.additionalFatPercent.toString());
+
+                this.showSettings = false;
+                console.log('Settings saved successfully');
+            } catch (error) {
+                console.error('Failed to save settings:', error);
+                this.settingsError = 'Unable to save settings. Please check your connection and try again.';
+            } finally {
+                this.isSavingSettings = false;
+            }
         },
         
         // Manual reset of daily servings
