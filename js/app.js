@@ -20,6 +20,12 @@ function foodTracker() {
         isSavingSettings: false,
         usingCachedSettings: false,
 
+        // Weight tracking state
+        showWeightDialog: false,
+        weightInput: '',
+        weightError: null,
+        isSavingWeight: false,
+
         // Current servings
         protein: 0,
         carbs: 0,
@@ -461,7 +467,51 @@ function foodTracker() {
                 this.isSavingSettings = false;
             }
         },
-        
+
+        // Open weight dialog
+        openWeightDialog() {
+            this.weightInput = '';
+            this.weightError = null;
+            this.showWeightDialog = true;
+        },
+
+        // Close weight dialog
+        closeWeightDialog() {
+            this.showWeightDialog = false;
+            this.weightInput = '';
+            this.weightError = null;
+        },
+
+        // Save weight to PocketBase
+        async saveWeight() {
+            this.isSavingWeight = true;
+            this.weightError = null;
+
+            // Validate input
+            const weight = parseFloat(this.weightInput);
+            if (isNaN(weight) || weight <= 0) {
+                this.weightError = 'Please enter a valid weight';
+                this.isSavingWeight = false;
+                return;
+            }
+
+            try {
+                // Save to PocketBase
+                await pb.collection('mmm_weight').create({
+                    user_id: this.user.id,
+                    weight_lbs: weight
+                });
+
+                console.log('Weight logged successfully:', weight);
+                this.closeWeightDialog();
+            } catch (error) {
+                console.error('Failed to save weight:', error);
+                this.weightError = 'Unable to save weight. Please check your connection and try again.';
+            } finally {
+                this.isSavingWeight = false;
+            }
+        },
+
         // Manual reset of daily servings
         async resetDaily() {
             // Clear any previous error
