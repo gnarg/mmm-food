@@ -19,6 +19,8 @@ function foodTracker() {
         isLoadingSettings: false,
         isSavingSettings: false,
         usingCachedSettings: false,
+        isRecomputing: false,
+        recomputeError: null,
 
         // Weight tracking state
         showWeightDialog: false,
@@ -490,6 +492,73 @@ function foodTracker() {
                 this.settingsError = 'Unable to save settings. Please check your connection and try again.';
             } finally {
                 this.isSavingSettings = false;
+            }
+        },
+
+        // Recompute calorie expenditure based on weight trend
+        async recomputeCalorieExpenditure() {
+            this.isRecomputing = true;
+            this.recomputeError = null;
+
+            try {
+                // Fetch weight records from past 7 days
+                const sevenDaysAgo = new Date();
+                sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                const sevenDaysAgoStr = sevenDaysAgo.toISOString();
+
+                const records = await pb.collection('mmm_weight').getFullList({
+                    filter: `user_id = "${this.user.id}" && created >= "${sevenDaysAgoStr}"`,
+                    sort: 'created'
+                });
+
+                // Need at least 2 data points for regression
+                if (records.length < 2) {
+                    this.recomputeError = `Need at least 2 weight entries from past 7 days. Found ${records.length}.`;
+                    return;
+                }
+
+                // Prepare data for linear regression
+                const dataPoints = records.map(record => ({
+                    time: new Date(record.created).getTime() / (1000 * 60 * 60 * 24), // Convert to days
+                    weight: record.weight_lbs
+                }));
+
+                // Perform linear regression
+                const n = dataPoints.length;
+                let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+
+                dataPoints.forEach(point => {
+                    sumX += point.time;
+                    sumY += point.weight;
+                    sumXY += point.time * point.weight;
+                    sumX2 += point.time * point.time;
+                });
+
+                // Calculate slope and intercept
+                const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+                const intercept = (sumY - slope * sumX) / n;
+
+                // Predict weights at start and end
+                const timeStart = dataPoints[0].time;
+                const timeEnd = dataPoints[dataPoints.length - 1].time;
+                const yStart = slope * timeStart + intercept;
+                const yEnd = slope * timeEnd + intercept;
+
+                // Calculate regression difference (negative = weight loss)
+                const regressionDifference = yEnd - yStart;
+
+                // Calculate adjustment
+                const adjustment = (this.deltaLbPerWeek - regressionDifference) * 250;
+
+                // Update calorie expenditure
+                this.calorieExpenditure += Math.round(adjustment);
+
+                console.log(`Recompute: regression_diff=${regressionDifference.toFixed(2)}, adjustment=${adjustment.toFixed(0)}, new TDEE=${this.calorieExpenditure}`);
+            } catch (error) {
+                console.error('Failed to recompute calorie expenditure:', error);
+                this.recomputeError = 'Unable to fetch weight data. Please check your connection.';
+            } finally {
+                this.isRecomputing = false;
             }
         },
 

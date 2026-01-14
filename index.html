@@ -272,8 +272,24 @@
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Calorie Expenditure</label>
-                        <input type="number" x-model="calorieExpenditure" min="0" step="1"
-                               class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                        <div class="flex gap-2">
+                            <input type="number" x-model="calorieExpenditure" min="0" step="1"
+                                   class="flex-1 border border-gray-300 rounded-lg px-3 py-2">
+                            <button @click="recomputeCalorieExpenditure()"
+                                    :disabled="isRecomputing"
+                                    :class="isRecomputing ? 'opacity-50 cursor-not-allowed' : 'hover:bg-green-600'"
+                                    class="bg-green-500 text-white px-3 py-2 rounded-lg text-sm whitespace-nowrap">
+                                <span x-show="!isRecomputing">Recompute</span>
+                                <span x-show="isRecomputing">Computing...</span>
+                            </button>
+                        </div>
+                        <!-- Recompute Error Message -->
+                        <div x-show="recomputeError" class="mt-2 bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded text-sm">
+                            <p x-text="recomputeError"></p>
+                            <button @click="recomputeError = null" class="text-xs underline mt-1">
+                                Dismiss
+                            </button>
+                        </div>
                     </div>
 
                     <div>
