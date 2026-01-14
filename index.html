@@ -309,6 +309,9 @@
                     </div>
                     <div class="font-bold mt-2">
                         Total: <span x-text="targetCalories"></span> cal
+                        <span class="text-sm font-normal text-gray-600">
+                            (Suggested: <span x-text="Math.round(calorieExpenditure + (deltaLbPerWeek * 500))"></span> cal)
+                        </span>
                     </div>
                 </div>
 
