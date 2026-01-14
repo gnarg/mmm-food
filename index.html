@@ -62,6 +62,22 @@
 
         <!-- Main Tracker View -->
         <div x-show="!showSettings" x-transition>
+            <!-- Auto-save Success Message -->
+            <div x-show="autoSaveMessage"
+                 x-transition
+                 class="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+                <p x-text="autoSaveMessage"></p>
+            </div>
+
+            <!-- Date Change Warning -->
+            <div x-show="dateChangeWarning"
+                 class="mb-4 bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
+                <p x-text="dateChangeWarning" class="text-sm"></p>
+                <button @click="dateChangeWarning = null" class="text-xs underline mt-1">
+                    Dismiss
+                </button>
+            </div>
+
             <!-- Total Calories Display -->
             <div class="bg-white rounded-lg shadow-md p-6 mb-6 text-center">
                 <h2 class="text-lg font-semibold text-gray-700 mb-2">Today's Calories</h2>

@@ -11,6 +11,8 @@ function foodTracker() {
         isLoading: true,
         resetError: null,
         isResetting: false,
+        autoSaveMessage: null,
+        dateChangeWarning: null,
 
         // Current servings
         protein: 0,
@@ -255,31 +257,92 @@ function foodTracker() {
         },
         
         // Load data from localStorage
-        loadData() {
+        async loadData() {
             const today = new Date().toDateString();
-            
+
             // Load daily data
             const localData = localStorage.getItem('mmm-food-daily');
             if (localData) {
                 const data = JSON.parse(localData);
-                if (data.date === today) {
+
+                // Check if date has changed
+                if (data.date !== today) {
+                    // Date changed - need to handle old data
+                    await this.handleDateChange(data);
+                } else {
+                    // Same day - load normally
                     this.protein = data.protein || 0;
                     this.carbs = data.carbs || 0;
                     this.fat = data.fat || 0;
                     this.alcohol = data.alcohol || 0;
                 }
             }
-            
+
             // Load targets
             const targetsData = localStorage.getItem('mmm-food-targets');
             if (targetsData) {
                 this.targets = JSON.parse(targetsData);
             }
-            
+
             // Load additional fat percentage
             const fatPercentData = localStorage.getItem('mmm-food-fat-percent');
             if (fatPercentData) {
                 this.additionalFatPercent = parseFloat(fatPercentData);
+            }
+        },
+
+        // Handle date change - auto-save previous day's data
+        async handleDateChange(oldData) {
+            // Check if there's any data worth saving
+            const hasData = oldData.protein > 0 || oldData.carbs > 0 ||
+                          oldData.fat > 0 || oldData.alcohol > 0;
+
+            if (!hasData) {
+                // No data to save, just reset
+                this.protein = 0;
+                this.carbs = 0;
+                this.fat = 0;
+                this.alcohol = 0;
+                this.saveData();
+                return;
+            }
+
+            // Try to save old data to PocketBase
+            try {
+                const macroData = {
+                    protein: oldData.protein || 0,
+                    carbohydrate: oldData.carbs || 0,
+                    fat: oldData.fat || 0,
+                    alcohol: oldData.alcohol || 0,
+                    user_id: this.user.id
+                };
+
+                await pb.collection('mmm_macros').create(macroData);
+
+                // Success - reset to 0 and show message
+                this.protein = 0;
+                this.carbs = 0;
+                this.fat = 0;
+                this.alcohol = 0;
+                this.saveData();
+
+                // Show success message
+                this.autoSaveMessage = "Yesterday's data saved automatically";
+                setTimeout(() => {
+                    this.autoSaveMessage = null;
+                }, 5000);
+
+                console.log('Previous day data auto-saved to PocketBase');
+            } catch (error) {
+                console.error('Failed to auto-save previous day data:', error);
+
+                // Keep old data visible and show warning
+                this.protein = oldData.protein || 0;
+                this.carbs = oldData.carbs || 0;
+                this.fat = oldData.fat || 0;
+                this.alcohol = oldData.alcohol || 0;
+
+                this.dateChangeWarning = `Data from ${oldData.date} couldn't be saved. Connect to internet and click "Reset Day" to save.`;
             }
         },
         
