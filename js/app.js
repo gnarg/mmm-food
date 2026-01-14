@@ -1,12 +1,21 @@
+// Initialize PocketBase client
+const pb = new PocketBase('https://db.guymon.family');
+
 // Alpine.js data component for food tracker
 function foodTracker() {
     return {
+        // Auth state
+        user: null,
+        isAuthenticated: false,
+        authError: null,
+        isLoading: true,
+
         // Current servings
         protein: 0,
         carbs: 0,
         fat: 0,
         alcohol: 0,
-        
+
         // Daily targets
         targets: {
             protein: 6,
@@ -14,10 +23,10 @@ function foodTracker() {
             fat: 4,
             alcohol: 0
         },
-        
+
         // Additional fat percentage for protein/carbs
         additionalFatPercent: 15,
-        
+
         // UI state
         showSettings: false,
         
@@ -92,8 +101,128 @@ function foodTracker() {
         },
         
         // Initialize component
-        init() {
-            this.loadData();
+        async init() {
+            // Check if we're handling an OAuth callback
+            const params = new URLSearchParams(window.location.search);
+            if (params.has('code')) {
+                await this.handleOAuthCallback();
+                return;
+            }
+
+            // Check authentication status
+            await this.checkAuth();
+
+            // Load data if authenticated
+            if (this.isAuthenticated) {
+                this.loadData();
+            }
+
+            this.isLoading = false;
+        },
+
+        // Check if user is authenticated
+        async checkAuth() {
+            try {
+                // Try to refresh auth token
+                if (pb.authStore.isValid) {
+                    await pb.collection('users').authRefresh();
+                    this.isAuthenticated = true;
+                    this.user = pb.authStore.model;
+                } else {
+                    // Not authenticated, initiate OAuth
+                    await this.initiateOAuth();
+                }
+            } catch (error) {
+                console.error('Auth check failed:', error);
+                // Try to initiate OAuth
+                await this.initiateOAuth();
+            }
+        },
+
+        // Initiate OAuth flow
+        async initiateOAuth() {
+            try {
+                const authMethods = await pb.collection('users').listAuthMethods();
+                const googleProvider = authMethods.authProviders.find(p => p.name === 'google');
+
+                if (!googleProvider) {
+                    this.authError = 'Google OAuth is not configured';
+                    this.isLoading = false;
+                    return;
+                }
+
+                // Store provider info in localStorage for callback
+                localStorage.setItem('oauth-provider', JSON.stringify({
+                    name: googleProvider.name,
+                    state: googleProvider.state,
+                    codeVerifier: googleProvider.codeVerifier
+                }));
+
+                // Redirect to Google OAuth
+                const redirectUrl = window.location.origin + window.location.pathname;
+                window.location.href = googleProvider.authUrl + redirectUrl;
+            } catch (error) {
+                console.error('OAuth initiation failed:', error);
+                this.authError = 'Failed to initiate authentication: ' + error.message;
+                this.isLoading = false;
+            }
+        },
+
+        // Handle OAuth callback
+        async handleOAuthCallback() {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const code = params.get('code');
+                const state = params.get('state');
+
+                // Retrieve provider info from localStorage
+                const providerData = localStorage.getItem('oauth-provider');
+                if (!providerData) {
+                    throw new Error('No OAuth provider data found');
+                }
+
+                const provider = JSON.parse(providerData);
+
+                // Verify state parameter (CSRF protection)
+                if (provider.state !== state) {
+                    throw new Error('State parameters do not match');
+                }
+
+                // Exchange code for token
+                const redirectUrl = window.location.origin + window.location.pathname;
+                await pb.collection('users').authWithOAuth2Code(
+                    provider.name,
+                    code,
+                    provider.codeVerifier,
+                    redirectUrl
+                );
+
+                // Clean up
+                localStorage.removeItem('oauth-provider');
+
+                // Update auth state
+                this.isAuthenticated = true;
+                this.user = pb.authStore.model;
+
+                // Clean URL and reload
+                window.history.replaceState({}, document.title, window.location.pathname);
+                this.loadData();
+                this.isLoading = false;
+            } catch (error) {
+                console.error('OAuth callback failed:', error);
+                this.authError = 'Authentication failed: ' + error.message;
+                this.isLoading = false;
+                // Clear OAuth provider data
+                localStorage.removeItem('oauth-provider');
+            }
+        },
+
+        // Logout user
+        logout() {
+            pb.authStore.clear();
+            this.isAuthenticated = false;
+            this.user = null;
+            window.location.reload();
         },
         
         // Increment macro serving

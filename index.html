@@ -23,19 +23,42 @@
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pocketbase@0.21.1/dist/pocketbase.umd.min.js"></script>
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body class="bg-gray-100 min-h-screen">
     <div id="app" x-data="foodTracker()" class="container mx-auto px-4 py-6 max-w-md">
-        <!-- Navigation -->
-        <nav class="flex justify-between items-center mb-6">
-            <h1 class="text-2xl font-bold text-gray-800">Mmm Food</h1>
-            <button @click="showSettings = !showSettings" 
-                    class="bg-blue-500 text-white px-4 py-2 rounded-lg">
-                <span x-show="!showSettings">Settings</span>
-                <span x-show="showSettings">Tracker</span>
-            </button>
-        </nav>
+        <!-- Loading State -->
+        <div x-show="isLoading" class="flex items-center justify-center min-h-screen">
+            <div class="text-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                <p class="text-gray-600">Loading...</p>
+            </div>
+        </div>
+
+        <!-- Auth Error State -->
+        <div x-show="!isLoading && authError" class="flex items-center justify-center min-h-screen">
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded max-w-md">
+                <p class="font-bold">Authentication Error</p>
+                <p x-text="authError"></p>
+                <button @click="window.location.reload()"
+                        class="mt-4 bg-red-500 text-white px-4 py-2 rounded-lg">
+                    Try Again
+                </button>
+            </div>
+        </div>
+
+        <!-- Main App (only show when authenticated) -->
+        <div x-show="!isLoading && isAuthenticated && !authError">
+            <!-- Navigation -->
+            <nav class="flex justify-between items-center mb-6">
+                <h1 class="text-2xl font-bold text-gray-800">Mmm Food</h1>
+                <button @click="showSettings = !showSettings"
+                        class="bg-blue-500 text-white px-4 py-2 rounded-lg">
+                    <span x-show="!showSettings">Settings</span>
+                    <span x-show="showSettings">Tracker</span>
+                </button>
+            </nav>
 
         <!-- Main Tracker View -->
         <div x-show="!showSettings" x-transition>
@@ -204,11 +227,26 @@
                     </div>
                 </div>
 
-                <button @click="saveSettings()" 
+                <button @click="saveSettings()"
                         class="w-full bg-blue-500 text-white py-3 rounded-lg mt-4 font-semibold">
                     Save Settings
                 </button>
+
+                <!-- User Info and Logout -->
+                <div class="mt-6 pt-6 border-t border-gray-200">
+                    <div class="flex justify-between items-center">
+                        <div class="text-sm text-gray-600">
+                            <p>Logged in as:</p>
+                            <p class="font-semibold" x-text="user?.email || user?.username || 'User'"></p>
+                        </div>
+                        <button @click="logout()"
+                                class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600">
+                            Logout
+                        </button>
+                    </div>
+                </div>
             </div>
+        </div>
         </div>
     </div>
 
