@@ -547,13 +547,36 @@ function foodTracker() {
                 // Calculate regression difference (negative = weight loss)
                 const regressionDifference = yEnd - yStart;
 
-                // Calculate adjustment
-                const adjustment = (this.deltaLbPerWeek - regressionDifference) * 250;
+                // Fetch macro records from past 7 days
+                const macroRecords = await pb.collection('mmm_macros').getFullList({
+                    filter: `user_id = "${this.user.id}" && created >= "${sevenDaysAgoStr}"`,
+                    sort: 'created'
+                });
+
+                // Calculate total calories from macro records
+                const additionalFatFactor = this.additionalFatPercent / 100;
+                let sumOfWeekCalories = 0;
+
+                macroRecords.forEach(record => {
+                    const proteinCal = record.protein * (this.PROTEIN_GRAMS * this.PROTEIN_CAL_PER_GRAM +
+                                                          this.PROTEIN_GRAMS * additionalFatFactor * this.FAT_CAL_PER_GRAM);
+                    const carbCal = record.carbohydrate * (this.CARB_GRAMS * this.CARB_CAL_PER_GRAM +
+                                                           this.CARB_GRAMS * additionalFatFactor * this.FAT_CAL_PER_GRAM);
+                    const fatCal = record.fat * this.FAT_GRAMS * this.FAT_CAL_PER_GRAM;
+                    const alcoholCal = record.alcohol * this.ALCOHOL_GRAMS * this.ALCOHOL_CAL_PER_GRAM;
+
+                    sumOfWeekCalories += proteinCal + carbCal + fatCal + alcoholCal;
+                });
+
+                // Calculate adjustment using new formula
+                const part1 = (this.deltaLbPerWeek - regressionDifference) * 500;
+                const part2 = ((this.calorieExpenditure * 7) - sumOfWeekCalories) / 7;
+                const adjustment = part1 - part2;
 
                 // Update calorie expenditure
-                this.calorieExpenditure += Math.round(adjustment);
+                this.calorieExpenditure += Math.round(adjustment / 2);
 
-                console.log(`Recompute: regression_diff=${regressionDifference.toFixed(2)}, adjustment=${adjustment.toFixed(0)}, new TDEE=${this.calorieExpenditure}`);
+                console.log(`Recompute: regression_diff=${regressionDifference.toFixed(2)}, sum_calories=${sumOfWeekCalories.toFixed(0)}, part1=${part1.toFixed(0)}, part2=${part2.toFixed(0)}, adjustment=${adjustment.toFixed(0)}, new TDEE=${this.calorieExpenditure}`);
             } catch (error) {
                 console.error('Failed to recompute calorie expenditure:', error);
                 this.recomputeError = 'Unable to fetch weight data. Please check your connection.';
