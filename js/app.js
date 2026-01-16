@@ -701,10 +701,10 @@ function foodTracker() {
     };
 }
 
-// Export for testing (ES module environment)
-if (typeof exports !== 'undefined') {
-    exports.foodTracker = foodTracker;
+// Make foodTracker globally available for browser (Alpine.js)
+if (typeof window !== 'undefined') {
+    window.foodTracker = foodTracker;
 }
 
-// Also support default export for ES6 imports
+// Export for testing (ES module environment)
 export { foodTracker };
