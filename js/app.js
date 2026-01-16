@@ -1,4 +1,5 @@
-// Initialize PocketBase client
+// Initialize PocketBase client (access from window for module scope)
+const PocketBase = window.PocketBase || globalThis.PocketBase;
 const pb = new PocketBase('https://db.guymon.family');
 
 // Alpine.js data component for food tracker
