@@ -121,7 +121,25 @@ function foodTracker() {
         getAlcoholCaloriesPerServing() {
             return this.ALCOHOL_GRAMS * this.ALCOHOL_CAL_PER_GRAM;
         },
-        
+
+        // Helper method to calculate grams from serving values (same logic as computed properties)
+        calculateGramsFromServings(proteinServings, carbServings, fatServings, alcoholServings) {
+            const additionalFatFactor = this.additionalFatPercent / 100;
+            const proteinGrams = proteinServings * this.PROTEIN_GRAMS;
+            const carbGrams = carbServings * this.CARB_GRAMS;
+            const directFat = fatServings * this.FAT_GRAMS;
+            const additionalFat = (proteinGrams + carbGrams) * additionalFatFactor;
+            const totalFatGrams = directFat + additionalFat;
+            const alcoholGrams = alcoholServings * this.ALCOHOL_GRAMS;
+
+            return {
+                protein: proteinGrams,
+                carbohydrate: carbGrams,
+                fat: totalFatGrams,
+                alcohol: alcoholGrams
+            };
+        },
+
         // Initialize component
         async init() {
             // Check if we're handling an OAuth callback
@@ -338,13 +356,17 @@ function foodTracker() {
                 return;
             }
 
-            // Try to save old data to PocketBase
+            // Try to save old data to PocketBase (convert servings to grams including additional fat)
             try {
+                const grams = this.calculateGramsFromServings(
+                    oldData.protein || 0,
+                    oldData.carbs || 0,
+                    oldData.fat || 0,
+                    oldData.alcohol || 0
+                );
+
                 const macroData = {
-                    protein: oldData.protein || 0,
-                    carbohydrate: oldData.carbs || 0,
-                    fat: oldData.fat || 0,
-                    alcohol: oldData.alcohol || 0,
+                    ...grams,
                     user_id: this.user.id
                 };
 
@@ -553,17 +575,20 @@ function foodTracker() {
                     sort: 'created'
                 });
 
-                // Calculate total calories from macro records
-                const additionalFatFactor = this.additionalFatPercent / 100;
+                // Calculate total calories from macro records (database stores grams with additional fat already included)
                 let sumOfWeekCalories = 0;
 
                 macroRecords.forEach(record => {
-                    const proteinCal = record.protein * (this.PROTEIN_GRAMS * this.PROTEIN_CAL_PER_GRAM +
-                                                          this.PROTEIN_GRAMS * additionalFatFactor * this.FAT_CAL_PER_GRAM);
-                    const carbCal = record.carbohydrate * (this.CARB_GRAMS * this.CARB_CAL_PER_GRAM +
-                                                           this.CARB_GRAMS * additionalFatFactor * this.FAT_CAL_PER_GRAM);
-                    const fatCal = record.fat * this.FAT_GRAMS * this.FAT_CAL_PER_GRAM;
-                    const alcoholCal = record.alcohol * this.ALCOHOL_GRAMS * this.ALCOHOL_CAL_PER_GRAM;
+                    // Database values are in grams with additional fat already calculated and included in the fat field
+                    const proteinGrams = record.protein;
+                    const carbGrams = record.carbohydrate;
+                    const fatGrams = record.fat;  // Already includes additional fat from protein/carbs
+                    const alcoholGrams = record.alcohol;
+
+                    const proteinCal = proteinGrams * this.PROTEIN_CAL_PER_GRAM;
+                    const carbCal = carbGrams * this.CARB_CAL_PER_GRAM;
+                    const fatCal = fatGrams * this.FAT_CAL_PER_GRAM;
+                    const alcoholCal = alcoholGrams * this.ALCOHOL_CAL_PER_GRAM;
 
                     sumOfWeekCalories += proteinCal + carbCal + fatCal + alcoholCal;
                 });
@@ -636,12 +661,12 @@ function foodTracker() {
             this.isResetting = true;
 
             try {
-                // Save current state to PocketBase
+                // Save current state to PocketBase (use computed grams properties)
                 const macroData = {
-                    protein: this.protein,
-                    carbohydrate: this.carbs,  // Note: PocketBase uses "carbohydrate"
-                    fat: this.fat,
-                    alcohol: this.alcohol,
+                    protein: this.proteinGrams,
+                    carbohydrate: this.carbGrams,
+                    fat: this.fatGrams,
+                    alcohol: this.alcoholGrams,
                     user_id: this.user.id
                 };
 
