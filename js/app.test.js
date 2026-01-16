@@ -7,8 +7,11 @@ global.PocketBase = class PocketBase {
     }
 };
 
-// Import the foodTracker function
-const { foodTracker } = await import('./app.js');
+// Load the app.js file (non-module)
+await import('./app.js');
+
+// Access foodTracker from global
+const { foodTracker } = globalThis;
 
 describe('foodTracker - Grams Calculations', () => {
     let tracker;

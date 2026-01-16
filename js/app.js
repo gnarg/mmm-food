@@ -1,5 +1,4 @@
-// Initialize PocketBase client (access from window for module scope)
-const PocketBase = window.PocketBase || globalThis.PocketBase;
+// Initialize PocketBase client
 const pb = new PocketBase('https://db.guymon.family');
 
 // Alpine.js data component for food tracker
@@ -702,10 +701,10 @@ function foodTracker() {
     };
 }
 
-// Make foodTracker globally available for browser (Alpine.js)
+// Make foodTracker globally available (for both browser and tests)
 if (typeof window !== 'undefined') {
     window.foodTracker = foodTracker;
 }
-
-// Export for testing (ES module environment)
-export { foodTracker };
+if (typeof globalThis !== 'undefined') {
+    globalThis.foodTracker = foodTracker;
+}
