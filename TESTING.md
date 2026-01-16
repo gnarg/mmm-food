@@ -26,7 +26,7 @@ npm run test:coverage
 
 ## Test Coverage
 
-The test suite includes **44 tests** covering the following functionality:
+The test suite includes **42 tests** covering the following functionality:
 
 ### Grams Calculations (15 tests)
 - **proteinGrams**: Validates protein gram calculations (25g per serving)
@@ -55,7 +55,7 @@ The test suite includes **44 tests** covering the following functionality:
 - **incrementMacro**: Tests incrementing macro servings
 - **decrementMacro**: Tests decrementing macro servings (prevents going below zero)
 
-### TDEE Recompute Algorithm (9 tests)
+### TDEE Recompute Algorithm (7 tests)
 - **Data validation**: Tests require at least 2 weight entries for linear regression
 - **Linear regression**: Tests weight trend calculation over 7 days
 - **Calorie calculation from database**: Validates that additional fat is not double-counted when reading stored grams
@@ -74,9 +74,9 @@ Tests are organized into describe blocks by functionality:
 - `foodTracker - Calorie Calculations` (11 tests)
 - `foodTracker - calculateGramsFromServings` (5 tests)
 - `foodTracker - Macro Increment/Decrement` (4 tests)
-- `foodTracker - Calorie Expenditure Recompute` (9 tests)
+- `foodTracker - Calorie Expenditure Recompute` (7 tests)
 
-**Total: 44 tests**
+**Total: 42 tests**
 
 Each test validates a specific calculation or behavior to ensure accuracy of the macro tracking logic.
 

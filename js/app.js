@@ -66,19 +66,11 @@ function foodTracker() {
         
         // Computed property for total calories
         get totalCalories() {
-            const additionalFatFactor = this.additionalFatPercent / 100;
-            const proteinCalories = this.protein * (this.PROTEIN_GRAMS * this.PROTEIN_CAL_PER_GRAM + 
-                                                   this.PROTEIN_GRAMS * additionalFatFactor * this.FAT_CAL_PER_GRAM);
-            const carbCalories = this.carbs * (this.CARB_GRAMS * this.CARB_CAL_PER_GRAM + 
-                                              this.CARB_GRAMS * additionalFatFactor * this.FAT_CAL_PER_GRAM);
-            const fatCalories = this.fat * this.FAT_GRAMS * this.FAT_CAL_PER_GRAM;
-            const alcoholCalories = this.alcohol * this.ALCOHOL_GRAMS * this.ALCOHOL_CAL_PER_GRAM;
-            
-            return Math.round(proteinCalories + carbCalories + fatCalories + alcoholCalories);
+            return this.calculateCaloriesFromServings(this.protein, this.carbs, this.fat, this.alcohol);
         },
 
         get targetCalories() {
-            return Math.round(this.targets.protein * this.getProteinCaloriesPerServing() + this.targets.carbs * this.getCarbCaloriesPerServing() + this.targets.fat * this.getFatCaloriesPerServing() + this.targets.alcohol * this.getAlcoholCaloriesPerServing());
+            return this.calculateCaloriesFromServings(this.targets.protein, this.targets.carbs, this.targets.fat, this.targets.alcohol);
         },
 
         // Computed properties for grams consumed
@@ -91,27 +83,29 @@ function foodTracker() {
         },
 
         get fatGrams() {
-            const additionalFatFactor = this.additionalFatPercent / 100;
             const directFat = this.fat * this.FAT_GRAMS;
-            const additionalFat = (this.protein * this.PROTEIN_GRAMS + this.carbs * this.CARB_GRAMS) * additionalFatFactor;
+            const additionalFat = (this.protein * this.PROTEIN_GRAMS + this.carbs * this.CARB_GRAMS) * this.additionalFatFactor;
             return Math.round(directFat + additionalFat);
         },
 
         get alcoholGrams() {
             return Math.round(this.alcohol * this.ALCOHOL_GRAMS);
         },
-        
+
+        // Helper getter for additional fat factor (used in multiple calculations)
+        get additionalFatFactor() {
+            return this.additionalFatPercent / 100;
+        },
+
         // Helper methods for calorie calculations
         getProteinCaloriesPerServing() {
-            const additionalFatFactor = this.additionalFatPercent / 100;
-            return this.PROTEIN_GRAMS * this.PROTEIN_CAL_PER_GRAM + 
-                   this.PROTEIN_GRAMS * additionalFatFactor * this.FAT_CAL_PER_GRAM;
+            return this.PROTEIN_GRAMS * this.PROTEIN_CAL_PER_GRAM +
+                   this.PROTEIN_GRAMS * this.additionalFatFactor * this.FAT_CAL_PER_GRAM;
         },
-        
+
         getCarbCaloriesPerServing() {
-            const additionalFatFactor = this.additionalFatPercent / 100;
-            return this.CARB_GRAMS * this.CARB_CAL_PER_GRAM + 
-                   this.CARB_GRAMS * additionalFatFactor * this.FAT_CAL_PER_GRAM;
+            return this.CARB_GRAMS * this.CARB_CAL_PER_GRAM +
+                   this.CARB_GRAMS * this.additionalFatFactor * this.FAT_CAL_PER_GRAM;
         },
         
         getFatCaloriesPerServing() {
@@ -122,13 +116,22 @@ function foodTracker() {
             return this.ALCOHOL_GRAMS * this.ALCOHOL_CAL_PER_GRAM;
         },
 
+        // Helper method to calculate calories from serving values
+        calculateCaloriesFromServings(proteinServings, carbServings, fatServings, alcoholServings) {
+            return Math.round(
+                proteinServings * this.getProteinCaloriesPerServing() +
+                carbServings * this.getCarbCaloriesPerServing() +
+                fatServings * this.getFatCaloriesPerServing() +
+                alcoholServings * this.getAlcoholCaloriesPerServing()
+            );
+        },
+
         // Helper method to calculate grams from serving values (same logic as computed properties)
         calculateGramsFromServings(proteinServings, carbServings, fatServings, alcoholServings) {
-            const additionalFatFactor = this.additionalFatPercent / 100;
             const proteinGrams = proteinServings * this.PROTEIN_GRAMS;
             const carbGrams = carbServings * this.CARB_GRAMS;
             const directFat = fatServings * this.FAT_GRAMS;
-            const additionalFat = (proteinGrams + carbGrams) * additionalFatFactor;
+            const additionalFat = (proteinGrams + carbGrams) * this.additionalFatFactor;
             const totalFatGrams = directFat + additionalFat;
             const alcoholGrams = alcoholServings * this.ALCOHOL_GRAMS;
 
@@ -138,6 +141,40 @@ function foodTracker() {
                 fat: totalFatGrams,
                 alcohol: alcoholGrams
             };
+        },
+
+        // Helper method to calculate calories from raw grams (for database records)
+        calculateCaloriesFromGrams(proteinGrams, carbGrams, fatGrams, alcoholGrams) {
+            return proteinGrams * this.PROTEIN_CAL_PER_GRAM +
+                   carbGrams * this.CARB_CAL_PER_GRAM +
+                   fatGrams * this.FAT_CAL_PER_GRAM +
+                   alcoholGrams * this.ALCOHOL_CAL_PER_GRAM;
+        },
+
+        // Helper method to reset all macro servings to 0
+        resetMacros() {
+            this.protein = 0;
+            this.carbs = 0;
+            this.fat = 0;
+            this.alcohol = 0;
+            this.saveData();
+        },
+
+        // Helper method to create macro data object for PocketBase
+        createMacroDataObject(proteinServings, carbServings, fatServings, alcoholServings) {
+            const grams = this.calculateGramsFromServings(proteinServings, carbServings, fatServings, alcoholServings);
+            return {
+                ...grams,
+                user_id: this.user.id
+            };
+        },
+
+        // Helper method to cache settings to localStorage
+        cacheSettingsToLocalStorage() {
+            localStorage.setItem('mmm-food-targets', JSON.stringify(this.targets));
+            localStorage.setItem('mmm-food-fat-percent', this.additionalFatPercent.toString());
+            localStorage.setItem('mmm-food-calorie-expenditure', this.calorieExpenditure.toString());
+            localStorage.setItem('mmm-food-delta-lb-per-week', this.deltaLbPerWeek.toString());
         },
 
         // Initialize component
@@ -348,36 +385,23 @@ function foodTracker() {
 
             if (!hasData) {
                 // No data to save, just reset
-                this.protein = 0;
-                this.carbs = 0;
-                this.fat = 0;
-                this.alcohol = 0;
-                this.saveData();
+                this.resetMacros();
                 return;
             }
 
             // Try to save old data to PocketBase (convert servings to grams including additional fat)
             try {
-                const grams = this.calculateGramsFromServings(
+                const macroData = this.createMacroDataObject(
                     oldData.protein || 0,
                     oldData.carbs || 0,
                     oldData.fat || 0,
                     oldData.alcohol || 0
                 );
 
-                const macroData = {
-                    ...grams,
-                    user_id: this.user.id
-                };
-
                 await pb.collection('mmm_macros').create(macroData);
 
                 // Success - reset to 0 and show message
-                this.protein = 0;
-                this.carbs = 0;
-                this.fat = 0;
-                this.alcohol = 0;
-                this.saveData();
+                this.resetMacros();
 
                 // Show success message
                 this.autoSaveMessage = "Yesterday's data saved automatically";
@@ -431,10 +455,7 @@ function foodTracker() {
                 this.deltaLbPerWeek = parseFloat(settingsMap['delta_lb_per_week'] || 0);
 
                 // Cache to localStorage
-                localStorage.setItem('mmm-food-targets', JSON.stringify(this.targets));
-                localStorage.setItem('mmm-food-fat-percent', this.additionalFatPercent.toString());
-                localStorage.setItem('mmm-food-calorie-expenditure', this.calorieExpenditure.toString());
-                localStorage.setItem('mmm-food-delta-lb-per-week', this.deltaLbPerWeek.toString());
+                this.cacheSettingsToLocalStorage();
 
                 console.log('Settings loaded from PocketBase');
             } catch (error) {
@@ -502,10 +523,7 @@ function foodTracker() {
                 await this.saveSettingsToPocketBase();
 
                 // Also save to localStorage (cache)
-                localStorage.setItem('mmm-food-targets', JSON.stringify(this.targets));
-                localStorage.setItem('mmm-food-fat-percent', this.additionalFatPercent.toString());
-                localStorage.setItem('mmm-food-calorie-expenditure', this.calorieExpenditure.toString());
-                localStorage.setItem('mmm-food-delta-lb-per-week', this.deltaLbPerWeek.toString());
+                this.cacheSettingsToLocalStorage();
 
                 this.showSettings = false;
                 console.log('Settings saved successfully');
@@ -665,22 +683,12 @@ function foodTracker() {
 
             try {
                 // Save current state to PocketBase (use computed grams properties)
-                const macroData = {
-                    protein: this.proteinGrams,
-                    carbohydrate: this.carbGrams,
-                    fat: this.fatGrams,
-                    alcohol: this.alcoholGrams,
-                    user_id: this.user.id
-                };
+                const macroData = this.createMacroDataObject(this.protein, this.carbs, this.fat, this.alcohol);
 
                 await pb.collection('mmm_macros').create(macroData);
 
                 // Only reset client state if save succeeded
-                this.protein = 0;
-                this.carbs = 0;
-                this.fat = 0;
-                this.alcohol = 0;
-                this.saveData();
+                this.resetMacros();
 
                 console.log('Day reset successfully and saved to PocketBase');
             } catch (error) {
