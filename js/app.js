@@ -523,12 +523,15 @@ function foodTracker() {
             this.recomputeError = null;
 
             try {
+                // Use global.pb for testing, fallback to module pb
+                const pbInstance = (typeof global !== 'undefined' && global.pb) || pb;
+
                 // Fetch weight records from past 7 days
                 const sevenDaysAgo = new Date();
                 sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
                 const sevenDaysAgoStr = sevenDaysAgo.toISOString();
 
-                const records = await pb.collection('mmm_weight').getFullList({
+                const records = await pbInstance.collection('mmm_weight').getFullList({
                     filter: `user_id = "${this.user.id}" && created >= "${sevenDaysAgoStr}"`,
                     sort: 'created'
                 });
@@ -570,7 +573,7 @@ function foodTracker() {
                 const regressionDifference = yEnd - yStart;
 
                 // Fetch macro records from past 7 days
-                const macroRecords = await pb.collection('mmm_macros').getFullList({
+                const macroRecords = await pbInstance.collection('mmm_macros').getFullList({
                     filter: `user_id = "${this.user.id}" && created >= "${sevenDaysAgoStr}"`,
                     sort: 'created'
                 });
@@ -689,3 +692,11 @@ function foodTracker() {
         }
     };
 }
+
+// Export for testing (ES module environment)
+if (typeof exports !== 'undefined') {
+    exports.foodTracker = foodTracker;
+}
+
+// Also support default export for ES6 imports
+export { foodTracker };

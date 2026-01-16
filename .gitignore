@@ -21,3 +21,9 @@ Thumbs.db
 *.log
 
 .direnv
+
+# Node.js
+node_modules/
+
+# Test coverage
+coverage/
