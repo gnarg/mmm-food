@@ -419,7 +419,7 @@ function foodTracker() {
                 this.fat = oldData.fat || 0;
                 this.alcohol = oldData.alcohol || 0;
 
-                this.dateChangeWarning = `Data from ${oldData.date} couldn't be saved. Connect to internet and click "Reset Day" to save.`;
+                this.dateChangeWarning = `Data from ${oldData.date} couldn't be saved. Connect to internet and click "Sync" to save.`;
             }
         },
 
