@@ -241,31 +241,31 @@
                 <div class="space-y-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Protein (servings)</label>
-                        <input type="number" x-model="targets.protein" 
+                        <input type="number" inputmode="numeric" x-model="targets.protein"
                                class="w-full border border-gray-300 rounded-lg px-3 py-2">
                     </div>
-                    
+
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Carbohydrates (servings)</label>
-                        <input type="number" x-model="targets.carbs" 
+                        <input type="number" inputmode="numeric" x-model="targets.carbs"
                                class="w-full border border-gray-300 rounded-lg px-3 py-2">
                     </div>
-                    
+
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Fat (servings)</label>
-                        <input type="number" x-model="targets.fat" 
+                        <input type="number" inputmode="numeric" x-model="targets.fat"
                                class="w-full border border-gray-300 rounded-lg px-3 py-2">
                     </div>
-                    
+
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Alcohol (servings)</label>
-                        <input type="number" x-model="targets.alcohol" 
+                        <input type="number" inputmode="numeric" x-model="targets.alcohol"
                                class="w-full border border-gray-300 rounded-lg px-3 py-2">
                     </div>
-                    
+
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Additional Fat % (for protein/carbs)</label>
-                        <input type="number" x-model="additionalFatPercent" min="0" max="100" step="0.1"
+                        <input type="number" inputmode="decimal" x-model="additionalFatPercent" min="0" max="100" step="0.1"
                                class="w-full border border-gray-300 rounded-lg px-3 py-2">
                         <p class="text-xs text-gray-500 mt-1">Percentage of additional fat grams added to protein and carb servings</p>
                     </div>
@@ -273,7 +273,7 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Calorie Expenditure</label>
                         <div class="flex gap-2">
-                            <input type="number" x-model="calorieExpenditure" min="0" step="1"
+                            <input type="number" inputmode="numeric" x-model="calorieExpenditure" min="0" step="1"
                                    class="flex-1 border border-gray-300 rounded-lg px-3 py-2">
                             <button @click="recomputeCalorieExpenditure()"
                                     :disabled="isRecomputing"
@@ -294,7 +294,7 @@
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Delta lb/week</label>
-                        <input type="number" x-model="deltaLbPerWeek" step="0.1"
+                        <input type="number" inputmode="decimal" x-model="deltaLbPerWeek" step="0.1"
                                class="w-full border border-gray-300 rounded-lg px-3 py-2">
                     </div>
                 </div>
@@ -351,6 +351,7 @@
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Weight (lbs)</label>
                     <input type="number"
+                           inputmode="decimal"
                            x-model="weightInput"
                            @keyup.enter="saveWeight()"
                            step="0.1"
