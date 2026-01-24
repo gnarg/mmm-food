@@ -28,6 +28,12 @@ function foodTracker() {
         weightError: null,
         isSavingWeight: false,
 
+        // Recompute results state
+        showRecomputeResults: false,
+        previousTdee: 0,
+        calorieChartInstance: null,
+        weightChartInstance: null,
+
         // Current servings
         protein: 0,
         carbs: 0,
@@ -544,6 +550,9 @@ function foodTracker() {
                 // Use global.pb for testing, fallback to module pb
                 const pbInstance = (typeof global !== 'undefined' && global.pb) || pb;
 
+                // Save previous TDEE for display
+                this.previousTdee = this.calorieExpenditure;
+
                 // Fetch weight records from past 7 days
                 const sevenDaysAgo = new Date();
                 sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -623,6 +632,15 @@ function foodTracker() {
                 this.calorieExpenditure += Math.round(adjustment / 2);
 
                 console.log(`Recompute: regression_diff=${regressionDifference.toFixed(2)}, sum_calories=${sumOfWeekCalories.toFixed(0)}, part1=${part1.toFixed(0)}, part2=${part2.toFixed(0)}, adjustment=${adjustment.toFixed(0)}, new TDEE=${this.calorieExpenditure}`);
+
+                // Show results modal with charts
+                this.showRecomputeResults = true;
+
+                // Wait for modal to render, then create charts
+                setTimeout(() => {
+                    this.renderCalorieChart(macroRecords);
+                    this.renderWeightChart(records, slope, intercept);
+                }, 100);
             } catch (error) {
                 console.error('Failed to recompute calorie expenditure:', error);
                 this.recomputeError = 'Unable to fetch weight data. Please check your connection.';
@@ -673,6 +691,162 @@ function foodTracker() {
             } finally {
                 this.isSavingWeight = false;
             }
+        },
+
+        // Close recompute results dialog
+        closeRecomputeResults() {
+            this.showRecomputeResults = false;
+            // Destroy chart instances to prevent memory leaks
+            if (this.calorieChartInstance) {
+                this.calorieChartInstance.destroy();
+                this.calorieChartInstance = null;
+            }
+            if (this.weightChartInstance) {
+                this.weightChartInstance.destroy();
+                this.weightChartInstance = null;
+            }
+        },
+
+        // Render calorie intake chart
+        renderCalorieChart(macroRecords) {
+            const ctx = document.getElementById('calorieChart');
+            if (!ctx) return;
+
+            // Calculate calories for each day
+            const calorieData = macroRecords.map(record => {
+                const calories = this.calculateCaloriesFromGrams(
+                    record.protein,
+                    record.carbohydrate,
+                    record.fat,
+                    record.alcohol
+                );
+                return {
+                    date: new Date(record.created).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                    calories: Math.round(calories)
+                };
+            });
+
+            const calories = calorieData.map(d => d.calories);
+            const minCalories = Math.min(...calories);
+            const maxCalories = Math.max(...calories);
+
+            // Destroy existing chart if any
+            if (this.calorieChartInstance) {
+                this.calorieChartInstance.destroy();
+            }
+
+            this.calorieChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: calorieData.map(d => d.date),
+                    datasets: [{
+                        label: 'Daily Calories',
+                        data: calories,
+                        borderColor: 'rgb(59, 130, 246)',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.1,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            min: minCalories - 100,
+                            max: maxCalories + 100,
+                            title: {
+                                display: true,
+                                text: 'Calories'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        },
+
+        // Render weight chart with regression line
+        renderWeightChart(weightRecords, slope, intercept) {
+            const ctx = document.getElementById('weightChart');
+            if (!ctx) return;
+
+            // Prepare weight data points
+            const weightData = weightRecords.map(record => ({
+                date: new Date(record.created).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                time: new Date(record.created).getTime() / (1000 * 60 * 60 * 24),
+                weight: record.weight_lbs
+            }));
+
+            const weights = weightData.map(d => d.weight);
+            const minWeight = Math.min(...weights);
+            const maxWeight = Math.max(...weights);
+
+            // Generate regression line points
+            const regressionWeights = weightData.map(d => slope * d.time + intercept);
+
+            // Destroy existing chart if any
+            if (this.weightChartInstance) {
+                this.weightChartInstance.destroy();
+            }
+
+            this.weightChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: weightData.map(d => d.date),
+                    datasets: [{
+                        label: 'Recorded Weight',
+                        data: weights,
+                        backgroundColor: 'rgb(59, 130, 246)',
+                        borderColor: 'rgb(59, 130, 246)',
+                        pointRadius: 6,
+                        pointHoverRadius: 8,
+                        borderWidth: 0,
+                        showLine: false
+                    }, {
+                        label: 'Trend Line',
+                        data: regressionWeights,
+                        borderColor: 'rgb(239, 68, 68)',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        fill: false,
+                        tension: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            min: minWeight - 10,
+                            max: maxWeight + 10,
+                            title: {
+                                display: true,
+                                text: 'Weight (lbs)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
+                        }
+                    }
+                }
+            });
         },
 
         // Manual reset of daily servings
