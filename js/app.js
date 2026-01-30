@@ -575,11 +575,28 @@ function foodTracker() {
                     weight: record.weight_lbs
                 }));
 
-                // Perform linear regression
-                const n = dataPoints.length;
+                // Filter outliers: remove weights more than 2 standard deviations from mean
+                const weights = dataPoints.map(d => d.weight);
+                const meanWeight = weights.reduce((sum, w) => sum + w, 0) / weights.length;
+                const variance = weights.reduce((sum, w) => sum + Math.pow(w - meanWeight, 2), 0) / weights.length;
+                const stdDev = Math.sqrt(variance);
+
+                const filteredDataPoints = dataPoints.filter(point => {
+                    const deviation = Math.abs(point.weight - meanWeight);
+                    return deviation <= 2 * stdDev;
+                });
+
+                // Need at least 2 data points after filtering for regression
+                if (filteredDataPoints.length < 2) {
+                    this.recomputeError = `After filtering outliers, only ${filteredDataPoints.length} weight entries remain. Need at least 2.`;
+                    return;
+                }
+
+                // Perform linear regression on filtered data
+                const n = filteredDataPoints.length;
                 let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
 
-                dataPoints.forEach(point => {
+                filteredDataPoints.forEach(point => {
                     sumX += point.time;
                     sumY += point.weight;
                     sumXY += point.time * point.weight;
@@ -590,9 +607,9 @@ function foodTracker() {
                 const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
                 const intercept = (sumY - slope * sumX) / n;
 
-                // Predict weights at start and end
-                const timeStart = dataPoints[0].time;
-                const timeEnd = dataPoints[dataPoints.length - 1].time;
+                // Predict weights at start and end (using filtered data)
+                const timeStart = filteredDataPoints[0].time;
+                const timeEnd = filteredDataPoints[filteredDataPoints.length - 1].time;
                 const yStart = slope * timeStart + intercept;
                 const yEnd = slope * timeEnd + intercept;
 
