@@ -1,7 +1,8 @@
 // Initialize PocketBase client
 const pb = new PocketBase('https://db.guymon.family');
 
-const RECOMPUTE_INTERVAL_DAYS = 7
+const RECOMPUTE_INTERVAL_DAYS = 14;
+const MAX_ADJUSTMENT = 250;
 
 // Alpine.js data component for food tracker
 function foodTracker() {
@@ -646,10 +647,10 @@ function foodTracker() {
                 const weeks = RECOMPUTE_INTERVAL_DAYS / 7
                 const part1 = (this.deltaLbPerWeek * weeks - regressionDifference) * 500;
                 const part2 = ((this.calorieExpenditure * RECOMPUTE_INTERVAL_DAYS) - sumOfWeekCalories) / RECOMPUTE_INTERVAL_DAYS;
-                const adjustment = part1 - part2;
+                const adjustment = Math.round(part1 - part2);
 
                 // Update calorie expenditure
-                this.calorieExpenditure += Math.min(500, Math.round(adjustment / 2));
+                this.calorieExpenditure += adjustment < 0 ? Math.max(-MAX_ADJUSTMENT, adjustment) : Math.min(MAX_ADJUSTMENT, adjustment)
 
                 console.log(`Recompute: regression_diff=${regressionDifference.toFixed(2)}, sum_calories=${sumOfWeekCalories.toFixed(0)}, part1=${part1.toFixed(0)}, part2=${part2.toFixed(0)}, adjustment=${adjustment.toFixed(0)}, new TDEE=${this.calorieExpenditure}`);
 

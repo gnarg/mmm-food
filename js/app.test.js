@@ -392,21 +392,28 @@ describe('foodTracker - Calorie Expenditure Recompute', () => {
     });
 
     test('calculates linear regression correctly for weight loss', async () => {
-        // Simulating steady 1 lb loss over 7 days
+        // Simulating steady 2 lb loss over 14 days (1 lb/week)
         const now = new Date('2026-01-16T12:00:00Z');
         mockPb.weightData = [
-            { created: new Date(now - 6 * 24 * 60 * 60 * 1000).toISOString(), weight_lbs: 180.0 },
-            { created: new Date(now - 5 * 24 * 60 * 60 * 1000).toISOString(), weight_lbs: 179.8 },
-            { created: new Date(now - 4 * 24 * 60 * 60 * 1000).toISOString(), weight_lbs: 179.6 },
-            { created: new Date(now - 3 * 24 * 60 * 60 * 1000).toISOString(), weight_lbs: 179.4 },
-            { created: new Date(now - 2 * 24 * 60 * 60 * 1000).toISOString(), weight_lbs: 179.2 },
-            { created: new Date(now - 1 * 24 * 60 * 60 * 1000).toISOString(), weight_lbs: 179.0 },
-            { created: now.toISOString(), weight_lbs: 178.8 }
+            { created: new Date(now - 13 * 24 * 60 * 60 * 1000).toISOString(), weight_lbs: 180.0 },
+            { created: new Date(now - 12 * 24 * 60 * 60 * 1000).toISOString(), weight_lbs: 179.85 },
+            { created: new Date(now - 11 * 24 * 60 * 60 * 1000).toISOString(), weight_lbs: 179.7 },
+            { created: new Date(now - 10 * 24 * 60 * 60 * 1000).toISOString(), weight_lbs: 179.55 },
+            { created: new Date(now - 9 * 24 * 60 * 60 * 1000).toISOString(), weight_lbs: 179.4 },
+            { created: new Date(now - 8 * 24 * 60 * 60 * 1000).toISOString(), weight_lbs: 179.25 },
+            { created: new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString(), weight_lbs: 179.1 },
+            { created: new Date(now - 6 * 24 * 60 * 60 * 1000).toISOString(), weight_lbs: 178.95 },
+            { created: new Date(now - 5 * 24 * 60 * 60 * 1000).toISOString(), weight_lbs: 178.8 },
+            { created: new Date(now - 4 * 24 * 60 * 60 * 1000).toISOString(), weight_lbs: 178.65 },
+            { created: new Date(now - 3 * 24 * 60 * 60 * 1000).toISOString(), weight_lbs: 178.5 },
+            { created: new Date(now - 2 * 24 * 60 * 60 * 1000).toISOString(), weight_lbs: 178.35 },
+            { created: new Date(now - 1 * 24 * 60 * 60 * 1000).toISOString(), weight_lbs: 178.2 },
+            { created: now.toISOString(), weight_lbs: 178.0 }
         ];
 
-        // 2000 calories
-        mockPb.macroData = Array(7).fill(null).map((_, i) => ({
-            created: new Date(now - (6 - i) * 24 * 60 * 60 * 1000).toISOString(),
+        // 2000 calories/day for 14 days
+        mockPb.macroData = Array(14).fill(null).map((_, i) => ({
+            created: new Date(now - (13 - i) * 24 * 60 * 60 * 1000).toISOString(),
             protein: 150,      // 150g protein
             carbohydrate: 200, // 200g carbs
             fat: 104.5,        // 52g direct + 52.5g additional = 104.5g total
@@ -415,26 +422,25 @@ describe('foodTracker - Calorie Expenditure Recompute', () => {
 
         await tracker.recomputeCalorieExpenditure();
 
-        // Weight regression should show ~1.2 lb loss
-        // Ate 2000 cal/day, lost target amount
-        // TDEE should stay relatively stable or adjust slightly
+        // Weight regression shows ~1.97 lb loss over 2 weeks
+        // Ate ~2341 cal/day, lost at target rate (1 lb/week)
+        // adjustment = -175
         expect(tracker.recomputeError).toBeNull();
-        expect(tracker.calorieExpenditure).toEqual(2470);
+        expect(tracker.calorieExpenditure).toEqual(2325);
     });
 
     test('adjusts TDEE upward when losing weight faster than target', async () => {
         const now = new Date('2026-01-16T12:00:00Z');
 
-        // Lost 2 lbs in a week (faster than -1 lb/week target)
+        // Lost 4 lbs in 14 days (2 lb/week, faster than -1 lb/week target)
         mockPb.weightData = [
-            { created: new Date(now - 6 * 24 * 60 * 60 * 1000).toISOString(), weight_lbs: 180 },
-            { created: now.toISOString(), weight_lbs: 178 }
+            { created: new Date(now - 13 * 24 * 60 * 60 * 1000).toISOString(), weight_lbs: 180 },
+            { created: now.toISOString(), weight_lbs: 176 }
         ];
 
-        // Ate 2000 cal/day
-        const dailyCalories = 2000;
-        mockPb.macroData = Array(7).fill(null).map((_, i) => ({
-            created: new Date(now - (6 - i) * 24 * 60 * 60 * 1000).toISOString(),
+        // Ate 2000 cal/day for 14 days
+        mockPb.macroData = Array(14).fill(null).map((_, i) => ({
+            created: new Date(now - (13 - i) * 24 * 60 * 60 * 1000).toISOString(),
             protein: 150,
             carbohydrate: 200,
             fat: 104.5,
@@ -448,21 +454,22 @@ describe('foodTracker - Calorie Expenditure Recompute', () => {
 
         // Lost faster than target, so TDEE should increase
         // (eating same calories but losing more = higher metabolism)
-        expect(tracker.calorieExpenditure).toEqual(2670);
+        // adjustment = 500, capped at 250
+        expect(tracker.calorieExpenditure).toEqual(2750);
     });
 
     test('adjusts TDEE downward when losing weight slower than target', async () => {
         const now = new Date('2026-01-16T12:00:00Z');
 
-        // Lost only 0.5 lbs in a week (slower than -1 lb/week target)
+        // Lost only 1 lb in 14 days (0.5 lb/week, slower than -1 lb/week target)
         mockPb.weightData = [
-            { created: new Date(now - 6 * 24 * 60 * 60 * 1000).toISOString(), weight_lbs: 180 },
-            { created: now.toISOString(), weight_lbs: 179.5 }
+            { created: new Date(now - 13 * 24 * 60 * 60 * 1000).toISOString(), weight_lbs: 180 },
+            { created: now.toISOString(), weight_lbs: 179 }
         ];
 
-        // Ate 2000 cal/day (expecting to lose 1 lb/week with TDEE of 2500)
-        mockPb.macroData = Array(7).fill(null).map((_, i) => ({
-            created: new Date(now - (6 - i) * 24 * 60 * 60 * 1000).toISOString(),
+        // Ate 2000 cal/day for 14 days (expecting to lose 1 lb/week with TDEE of 2500)
+        mockPb.macroData = Array(14).fill(null).map((_, i) => ({
+            created: new Date(now - (13 - i) * 24 * 60 * 60 * 1000).toISOString(),
             protein: 150,
             carbohydrate: 200,
             fat: 104.5,
@@ -477,21 +484,22 @@ describe('foodTracker - Calorie Expenditure Recompute', () => {
 
         // Lost slower than target, so TDEE should decrease
         // (eating same calories but losing less = lower metabolism than estimated)
-        expect(tracker.calorieExpenditure).toEqual(2295);
+        // adjustment = -1000, capped at -250
+        expect(tracker.calorieExpenditure).toEqual(2250);
     });
 
     test('handles weight gain target correctly', async () => {
         const now = new Date('2026-01-16T12:00:00Z');
 
-        // Gained 0.5 lbs in a week (target was +0.5 lb/week)
+        // Gained 1 lb in 14 days (0.5 lb/week, target was +0.5 lb/week)
         mockPb.weightData = [
-            { created: new Date(now - 6 * 24 * 60 * 60 * 1000).toISOString(), weight_lbs: 180 },
-            { created: now.toISOString(), weight_lbs: 180.5 }
+            { created: new Date(now - 13 * 24 * 60 * 60 * 1000).toISOString(), weight_lbs: 180 },
+            { created: now.toISOString(), weight_lbs: 181 }
         ];
 
-        // Ate 2750 cal/day (TDEE 2500 + 250 surplus for 0.5 lb/week gain)
-        mockPb.macroData = Array(7).fill(null).map((_, i) => ({
-            created: new Date(now - (6 - i) * 24 * 60 * 60 * 1000).toISOString(),
+        // Ate ~2857 cal/day for 14 days (TDEE 2500 + 357 surplus)
+        mockPb.macroData = Array(14).fill(null).map((_, i) => ({
+            created: new Date(now - (13 - i) * 24 * 60 * 60 * 1000).toISOString(),
             protein: 200,
             carbohydrate: 250,
             fat: 117.5, // Includes additional fat
@@ -504,8 +512,9 @@ describe('foodTracker - Calorie Expenditure Recompute', () => {
         await tracker.recomputeCalorieExpenditure();
 
         // Should adjust based on actual vs target gain
+        // adjustment = 358, capped at 250
         expect(tracker.recomputeError).toBeNull();
-        expect(tracker.calorieExpenditure).toEqual(2679);
+        expect(tracker.calorieExpenditure).toEqual(2750);
     });
 
     test('calculates adjustment formula correctly', async () => {
@@ -514,13 +523,13 @@ describe('foodTracker - Calorie Expenditure Recompute', () => {
         // Set up specific scenario to test formula
         // Target: -1 lb/week, Actual: -0.5 lb/week
         mockPb.weightData = [
-            { created: new Date(now - 6 * 24 * 60 * 60 * 1000).toISOString(), weight_lbs: 180 },
-            { created: now.toISOString(), weight_lbs: 179.5 }
+            { created: new Date(now - 13 * 24 * 60 * 60 * 1000).toISOString(), weight_lbs: 180 },
+            { created: now.toISOString(), weight_lbs: 179 }
         ];
 
-        // Ate 2000 cal/day for 7 days = 14000 total
-        mockPb.macroData = Array(7).fill(null).map((_, i) => ({
-            created: new Date(now - (6 - i) * 24 * 60 * 60 * 1000).toISOString(),
+        // Ate ~2341 cal/day for 14 days
+        mockPb.macroData = Array(14).fill(null).map((_, i) => ({
+            created: new Date(now - (13 - i) * 24 * 60 * 60 * 1000).toISOString(),
             protein: 150,      // 600 cal
             carbohydrate: 200, // 800 cal
             fat: 104.5,        // 940.5 cal
@@ -534,21 +543,29 @@ describe('foodTracker - Calorie Expenditure Recompute', () => {
         const initialTDEE = tracker.calorieExpenditure;
         await tracker.recomputeCalorieExpenditure();
 
-        // TDEE should decrease (actual result will depend on exact regression)
+        // TDEE should decrease
+        // adjustment = -660, capped at -250
         expect(tracker.recomputeError).toBeNull();
-        expect(tracker.calorieExpenditure).toEqual(2295);
+        expect(tracker.calorieExpenditure).toEqual(2250);
     });
 
     test('handles varying macro compositions correctly', async () => {
         const now = new Date('2026-01-16T12:00:00Z');
 
         mockPb.weightData = [
-            { created: new Date(now - 6 * 24 * 60 * 60 * 1000).toISOString(), weight_lbs: 180 },
-            { created: now.toISOString(), weight_lbs: 179 }
+            { created: new Date(now - 13 * 24 * 60 * 60 * 1000).toISOString(), weight_lbs: 180 },
+            { created: now.toISOString(), weight_lbs: 178 }
         ];
 
-        // Different macro compositions across days
+        // Different macro compositions across 14 days
         mockPb.macroData = [
+            { created: new Date(now - 13 * 24 * 60 * 60 * 1000).toISOString(), protein: 200, carbohydrate: 150, fat: 96.5, alcohol: 0 },
+            { created: new Date(now - 12 * 24 * 60 * 60 * 1000).toISOString(), protein: 150, carbohydrate: 250, fat: 112, alcohol: 0 },
+            { created: new Date(now - 11 * 24 * 60 * 60 * 1000).toISOString(), protein: 175, carbohydrate: 200, fat: 108.75, alcohol: 15 },
+            { created: new Date(now - 10 * 24 * 60 * 60 * 1000).toISOString(), protein: 160, carbohydrate: 180, fat: 103, alcohol: 0 },
+            { created: new Date(now - 9 * 24 * 60 * 60 * 1000).toISOString(), protein: 140, carbohydrate: 220, fat: 106, alcohol: 30 },
+            { created: new Date(now - 8 * 24 * 60 * 60 * 1000).toISOString(), protein: 180, carbohydrate: 190, fat: 107.5, alcohol: 0 },
+            { created: new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString(), protein: 155, carbohydrate: 210, fat: 106.75, alcohol: 15 },
             { created: new Date(now - 6 * 24 * 60 * 60 * 1000).toISOString(), protein: 200, carbohydrate: 150, fat: 96.5, alcohol: 0 },
             { created: new Date(now - 5 * 24 * 60 * 60 * 1000).toISOString(), protein: 150, carbohydrate: 250, fat: 112, alcohol: 0 },
             { created: new Date(now - 4 * 24 * 60 * 60 * 1000).toISOString(), protein: 175, carbohydrate: 200, fat: 108.75, alcohol: 15 },
@@ -561,7 +578,8 @@ describe('foodTracker - Calorie Expenditure Recompute', () => {
         await tracker.recomputeCalorieExpenditure();
 
         // Should handle varying macros and calculate total correctly
+        // adjustment = -25, no capping needed
         expect(tracker.recomputeError).toBeNull();
-        expect(tracker.calorieExpenditure).toEqual(2487);
+        expect(tracker.calorieExpenditure).toEqual(2475);
     });
 });
