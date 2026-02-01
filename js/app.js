@@ -1,6 +1,8 @@
 // Initialize PocketBase client
 const pb = new PocketBase('https://db.guymon.family');
 
+const RECOMPUTE_INTERVAL_DAYS = 7
+
 // Alpine.js data component for food tracker
 function foodTracker() {
     return {
@@ -553,19 +555,19 @@ function foodTracker() {
                 // Save previous TDEE for display
                 this.previousTdee = this.calorieExpenditure;
 
-                // Fetch weight records from past 7 days
-                const sevenDaysAgo = new Date();
-                sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-                const sevenDaysAgoStr = sevenDaysAgo.toISOString();
+                // Fetch weight records from past interval
+                const intervalDaysAgo = new Date();
+                intervalDaysAgo.setDate(intervalDaysAgo.getDate() - RECOMPUTE_INTERVAL_DAYS);
+                const intervalDaysAgoStr = intervalDaysAgo.toISOString();
 
                 const records = await pbInstance.collection('mmm_weight').getFullList({
-                    filter: `user_id = "${this.user.id}" && created >= "${sevenDaysAgoStr}"`,
+                    filter: `user_id = "${this.user.id}" && created >= "${intervalDaysAgoStr}"`,
                     sort: 'created'
                 });
 
                 // Need at least 2 data points for regression
                 if (records.length < 2) {
-                    this.recomputeError = `Need at least 2 weight entries from past 7 days. Found ${records.length}.`;
+                    this.recomputeError = `Need at least 2 weight entries from past ${RECOMPUTE_INTERVAL_DAYS} days. Found ${records.length}.`;
                     return;
                 }
 
@@ -616,9 +618,9 @@ function foodTracker() {
                 // Calculate regression difference (negative = weight loss)
                 const regressionDifference = yEnd - yStart;
 
-                // Fetch macro records from past 7 days
+                // Fetch macro records from past interval
                 const macroRecords = await pbInstance.collection('mmm_macros').getFullList({
-                    filter: `user_id = "${this.user.id}" && created >= "${sevenDaysAgoStr}"`,
+                    filter: `user_id = "${this.user.id}" && created >= "${intervalDaysAgoStr}"`,
                     sort: 'created'
                 });
 
@@ -641,8 +643,9 @@ function foodTracker() {
                 });
 
                 // Calculate adjustment using new formula
-                const part1 = (this.deltaLbPerWeek - regressionDifference) * 500;
-                const part2 = ((this.calorieExpenditure * 7) - sumOfWeekCalories) / 7;
+                const weeks = RECOMPUTE_INTERVAL_DAYS / 7
+                const part1 = (this.deltaLbPerWeek * weeks - regressionDifference) * 500;
+                const part2 = ((this.calorieExpenditure * RECOMPUTE_INTERVAL_DAYS) - sumOfWeekCalories) / RECOMPUTE_INTERVAL_DAYS;
                 const adjustment = part1 - part2;
 
                 // Update calorie expenditure
