@@ -649,7 +649,7 @@ function foodTracker() {
                 const adjustment = part1 - part2;
 
                 // Update calorie expenditure
-                this.calorieExpenditure += Math.round(adjustment / 2);
+                this.calorieExpenditure += Math.min(500, Math.round(adjustment / 2));
 
                 console.log(`Recompute: regression_diff=${regressionDifference.toFixed(2)}, sum_calories=${sumOfWeekCalories.toFixed(0)}, part1=${part1.toFixed(0)}, part2=${part2.toFixed(0)}, adjustment=${adjustment.toFixed(0)}, new TDEE=${this.calorieExpenditure}`);
 
