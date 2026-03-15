@@ -3,6 +3,8 @@ const pb = new PocketBase('https://db.guymon.family');
 
 const RECOMPUTE_INTERVAL_DAYS = 14;
 const MAX_ADJUSTMENT = 250;
+const SYNC_QUEUE_KEY = 'mmm-food-sync-queue';
+const SYNC_STATUS_KEY = 'mmm-food-sync-status';
 
 // Alpine.js data component for food tracker
 function foodTracker() {
@@ -60,6 +62,11 @@ function foodTracker() {
 
         // UI state
         showSettings: false,
+        
+        // Offline state
+        isOnline: true,
+        pendingSyncCount: 0,
+        lastSyncTime: null,
         
         // Base serving sizes
         PROTEIN_GRAMS: 25,
@@ -186,8 +193,94 @@ function foodTracker() {
             localStorage.setItem('mmm-food-delta-lb-per-week', this.deltaLbPerWeek.toString());
         },
 
+        // Register service worker
+        registerServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/sw.js')
+                    .then((registration) => {
+                        console.log('SW registered:', registration.scope);
+                    })
+                    .catch((error) => {
+                        console.log('SW registration failed:', error);
+                    });
+            }
+        },
+        
+        // Check online status
+        checkOnlineStatus() {
+            this.isOnline = navigator.onLine;
+            this.updatePendingSyncCount();
+            
+            if (this.isOnline && this.pendingSyncCount > 0) {
+                console.log(`Online! ${this.pendingSyncCount} items pending sync`);
+            }
+        },
+        
+        // Set up network event listeners
+        setupNetworkListeners() {
+            window.addEventListener('online', () => {
+                this.isOnline = true;
+                this.updatePendingSyncCount();
+                this.lastSyncTime = null;
+                console.log('Connection restored');
+            });
+            
+            window.addEventListener('offline', () => {
+                this.isOnline = false;
+                this.updatePendingSyncCount();
+                console.log('Connection lost');
+            });
+        },
+        
+        // Update pending sync count from queue
+        updatePendingSyncCount() {
+            const queue = this.getSyncQueue();
+            this.pendingSyncCount = queue ? queue.length : 0;
+        },
+        
+        // Get sync queue from localStorage
+        getSyncQueue() {
+            const data = localStorage.getItem(SYNC_QUEUE_KEY);
+            return data ? JSON.parse(data) : [];
+        },
+        
+        // Add item to sync queue
+        addToSyncQueue(item) {
+            const queue = this.getSyncQueue();
+            queue.push({
+                ...item,
+                timestamp: Date.now(),
+                synced: false
+            });
+            localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(queue));
+            this.updatePendingSyncCount();
+        },
+        
+        // Remove synced item from queue
+        removeFromSyncQueue(queueId) {
+            const queue = this.getSyncQueue();
+            const filtered = queue.filter(item => item.queueId !== queueId);
+            localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(filtered));
+            this.updatePendingSyncCount();
+        },
+        
+        // Clear entire sync queue
+        clearSyncQueue() {
+            localStorage.removeItem(SYNC_QUEUE_KEY);
+            this.updatePendingSyncCount();
+        },
+        
         // Initialize component
         async init() {
+            // Register service worker
+            this.registerServiceWorker();
+            
+            // Setup network listeners
+            this.setupNetworkListeners();
+            
+            // Check initial online status
+            this.checkOnlineStatus();
+            
             // Check if we're handling an OAuth callback
             const params = new URLSearchParams(window.location.search);
             if (params.has('code')) {
@@ -327,6 +420,14 @@ function foodTracker() {
             }
         },
         
+        // Queue ID counter
+        _queueIdCounter: 0,
+        
+        // Get next queue ID
+        getNextQueueId() {
+            return (Date.now().toString() + '-' + (++this._queueIdCounter)).toString();
+        },
+        
         // Save current data to localStorage
         saveData() {
             const data = {
@@ -338,6 +439,16 @@ function foodTracker() {
             };
             
             localStorage.setItem('mmm-food-daily', JSON.stringify(data));
+            
+            // Queue for sync if offline
+            if (!this.isOnline && this.isAuthenticated) {
+                const queueId = Date.now().toString();
+                this.addToSyncQueue({
+                    type: 'macros',
+                    data: data,
+                    queueId: queueId
+                });
+            }
         },
         
         // Load data from localStorage
@@ -489,6 +600,17 @@ function foodTracker() {
                 { key: 'delta_lb_per_week', value: this.deltaLbPerWeek.toString() }
             ];
 
+            // Queue settings if offline
+            if (!this.isOnline && this.isAuthenticated) {
+                const queueId = this.getNextQueueId();
+                this.addToSyncQueue({
+                    type: 'settings',
+                    data: settingsToSave,
+                    queueId: queueId
+                });
+                throw new Error('OFFLINE_QUEUED');
+            }
+
             // Save each setting (upsert)
             for (const setting of settingsToSave) {
                 try {
@@ -538,7 +660,14 @@ function foodTracker() {
                 console.log('Settings saved successfully');
             } catch (error) {
                 console.error('Failed to save settings:', error);
-                this.settingsError = 'Unable to save settings. Please check your connection and try again.';
+                
+                // Check if error is offline queued
+                if (error.message === 'OFFLINE_QUEUED') {
+                    this.cacheSettingsToLocalStorage();
+                    this.settingsError = 'Saved offline. Will sync when online.';
+                } else {
+                    this.settingsError = 'Unable to save settings. Please check your connection and try again.';
+                }
             } finally {
                 this.isSavingSettings = false;
             }
@@ -708,7 +837,19 @@ function foodTracker() {
                 this.closeWeightDialog();
             } catch (error) {
                 console.error('Failed to save weight:', error);
-                this.weightError = 'Unable to save weight. Please check your connection and try again.';
+                
+                // Queue for sync if offline
+                if (!this.isOnline && this.isAuthenticated) {
+                    const queueId = this.getNextQueueId();
+                    this.addToSyncQueue({
+                        type: 'weight',
+                        data: { weight_lbs: weight },
+                        queueId: queueId
+                    });
+                    this.weightError = 'Weight logged offline. Will sync when online.';
+                } else {
+                    this.weightError = 'Unable to save weight. Please check your connection and try again.';
+                }
             } finally {
                 this.isSavingWeight = false;
             }
@@ -888,9 +1029,100 @@ function foodTracker() {
                 console.log('Day reset successfully and saved to PocketBase');
             } catch (error) {
                 console.error('Failed to save to PocketBase:', error);
-                this.resetError = 'Unable to sync with server. Please check your connection and try again.';
+                
+                // Queue for sync if offline
+                if (error.message === 'OFFLINE_QUEUED') {
+                    this.resetError = 'Will sync when online';
+                } else {
+                    this.resetError = 'Unable to sync with server. Please check your connection and try again.';
+                }
             } finally {
                 this.isResetting = false;
+            }
+        },
+        
+        // Sync queued items to PocketBase
+        async syncQueuedItems() {
+            this.isSavingSettings = true;
+            this.settingsError = null;
+            
+            try {
+                const queue = this.getSyncQueue();
+                
+                if (queue.length === 0) {
+                    this.settingsError = 'No items to sync';
+                    return;
+                }
+                
+                let successCount = 0;
+                let failCount = 0;
+                const failedItems = [];
+                
+                for (const item of queue) {
+                    try {
+                        if (item.type === 'macros') {
+                            const macroData = {
+                                user_id: this.user.id,
+                                protein: item.data.protein * this.PROTEIN_GRAMS,
+                                carbohydrate: item.data.carbs * this.CARB_GRAMS,
+                                fat: item.data.fat * this.FAT_GRAMS + 
+                                     (item.data.protein * this.PROTEIN_GRAMS + item.data.carbs * this.CARB_GRAMS) * this.additionalFatFactor,
+                                alcohol: item.data.alcohol * this.ALCOHOL_GRAMS
+                            };
+                            await pb.collection('mmm_macros').create(macroData);
+                        } else if (item.type === 'settings') {
+                            for (const setting of item.data) {
+                                const existing = await pb.collection('mmm_settings').getFirstListItem(
+                                    `user_id = "${this.user.id}" && key = "${setting.key}"`
+                                ).catch(() => null);
+                                
+                                if (existing) {
+                                    await pb.collection('mmm_settings').update(existing.id, {
+                                        value: setting.value
+                                    });
+                                } else {
+                                    await pb.collection('mmm_settings').create({
+                                        user_id: this.user.id,
+                                        key: setting.key,
+                                        value: setting.value
+                                    });
+                                }
+                            }
+                        } else if (item.type === 'weight') {
+                            await pb.collection('mmm_weight').create({
+                                user_id: this.user.id,
+                                weight_lbs: item.data.weight_lbs
+                            });
+                        }
+                        
+                        // Remove from queue on success
+                        this.removeFromSyncQueue(item.queueId);
+                        successCount++;
+                    } catch (error) {
+                        console.error('Failed to sync item:', error);
+                        failCount++;
+                        failedItems.push(item.queueId);
+                    }
+                }
+                
+                // Update last sync time
+                this.lastSyncTime = new Date().toISOString();
+                
+                // Show result message
+                if (successCount > 0 && failCount === 0) {
+                    this.autoSaveMessage = `Synced ${successCount} item(s) successfully`;
+                } else if (successCount > 0 && failCount > 0) {
+                    this.settingsError = `Synced ${successCount} items, ${failCount} failed`;
+                } else {
+                    this.settingsError = 'Sync failed. Please try again.';
+                }
+                
+                console.log(`Sync complete: ${successCount} successful, ${failCount} failed`);
+            } catch (error) {
+                console.error('Sync error:', error);
+                this.settingsError = 'Sync failed. Please try again.';
+            } finally {
+                this.isSavingSettings = false;
             }
         }
     };
@@ -903,3 +1135,19 @@ if (typeof window !== 'undefined') {
 if (typeof globalThis !== 'undefined') {
     globalThis.foodTracker = foodTracker;
 }
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', async () => {
+    // Wait for Alpine to be ready
+    if (window.Alpine && window.Alpine.doneInitializing) {
+        window.Alpine.whenNotPending(() => {
+            const app = document.getElementById('app');
+            if (app && app.__x) {
+                const tracker = app.__x.$data.foodTracker;
+                if (tracker && typeof tracker.init === 'function') {
+                    tracker.init();
+                }
+            }
+        });
+    }
+});

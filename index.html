@@ -52,6 +52,16 @@
         <!-- Main App (only show when authenticated) -->
         <div x-show="!isLoading && isAuthenticated && !authError">
             <!-- Navigation -->
+            <!-- Offline Indicator -->
+            <div x-show="!isOnline"
+                 x-transition
+                 class="bg-red-500 text-white px-4 py-2 rounded-lg text-center mb-4">
+                <p class="text-sm font-semibold">📡 Offline Mode</p>
+                <p x-show="pendingSyncCount > 0" class="text-xs mt-1">
+                    <span x-text="pendingSyncCount"></span> item(s) pending sync
+                </p>
+            </div>
+
             <nav class="flex justify-between items-center mb-6">
                 <h1 class="text-2xl font-bold text-gray-800">Mmm Food</h1>
                 <button @click="if (!showSettings) { refreshSettings(); } showSettings = !showSettings"
@@ -86,13 +96,22 @@
                 <p class="text-sm text-gray-600" x-text="'Target: ' + targetCalories"></p>
 
                 <!-- Action Buttons -->
-                <div class="flex gap-2 mt-4 justify-center">
+                <div class="flex gap-2 mt-4 justify-center flex-wrap">
                     <button @click="resetDaily()"
                             :disabled="isResetting"
                             :class="isResetting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-600'"
-                            class="bg-gray-500 text-white px-4 py-2 rounded-lg text-sm">
-                        <span x-show="!isResetting">Sync</span>
+                            class="bg-gray-500 text-white px-4 py-2 rounded-lg text-sm min-w-[100px]">
+                        <span x-show="!isResetting">Save</span>
                         <span x-show="isResetting">Saving...</span>
+                    </button>
+
+                    <button @click="syncQueuedItems()"
+                            x-show="!isOnline && pendingSyncCount > 0"
+                            :disabled="isSavingSettings"
+                            :class="isSavingSettings ? 'opacity-50 cursor-not-allowed' : 'hover:bg-green-600'"
+                            class="bg-green-500 text-white px-4 py-2 rounded-lg text-sm min-w-[100px]">
+                        <span x-show="!isSavingSettings">Sync Now</span>
+                        <span x-show="isSavingSettings">Syncing...</span>
                     </button>
 
                     <button @click="openWeightDialog()"
@@ -230,6 +249,18 @@
                     <p>Using cached settings (offline). Changes will sync when online.</p>
                 </div>
 
+                <!-- Sync Status -->
+                <div x-show="!isOnline"
+                     class="mb-4 bg-orange-100 border border-orange-400 text-orange-700 px-3 py-2 rounded text-sm">
+                    <p class="font-semibold">Offline Mode Active</p>
+                    <p x-show="pendingSyncCount > 0" class="mt-1">
+                        <span x-text="pendingSyncCount"></span> item(s) waiting to sync
+                    </p>
+                    <p x-show="lastSyncTime" class="mt-1 text-xs">
+                        Last synced: <span x-text="new Date(lastSyncTime).toLocaleString()"></span>
+                    </p>
+                </div>
+
                 <!-- Settings Error Message -->
                 <div x-show="settingsError"
                      class="mb-4 bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded text-sm">
@@ -320,7 +351,10 @@
                         :disabled="isSavingSettings"
                         :class="isSavingSettings ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-600'"
                         class="w-full bg-blue-500 text-white py-3 rounded-lg mt-4 font-semibold">
-                    <span x-show="!isSavingSettings">Save Settings</span>
+                    <span x-show="!isSavingSettings">
+                        Save Settings
+                        <span x-show="!isOnline && pendingSyncCount > 0" class="block text-xs font-normal">(Will sync when online)</span>
+                    </span>
                     <span x-show="isSavingSettings">Saving...</span>
                 </button>
 
