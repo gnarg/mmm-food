@@ -23,7 +23,6 @@ function foodTracker() {
         settingsError: null,
         isLoadingSettings: false,
         isSavingSettings: false,
-        usingCachedSettings: false,
         isRecomputing: false,
         recomputeError: null,
 
@@ -185,13 +184,8 @@ function foodTracker() {
             };
         },
 
-        // Helper method to cache settings to localStorage
-        cacheSettingsToLocalStorage() {
-            localStorage.setItem('mmm-food-targets', JSON.stringify(this.targets));
-            localStorage.setItem('mmm-food-fat-percent', this.additionalFatPercent.toString());
-            localStorage.setItem('mmm-food-calorie-expenditure', this.calorieExpenditure.toString());
-            localStorage.setItem('mmm-food-delta-lb-per-week', this.deltaLbPerWeek.toString());
-        },
+        // Note: Settings are NOT cached to localStorage - they come from PocketBase only
+        // This function has been removed to ensure settings are always loaded from server
 
         // Register service worker
         registerServiceWorker() {
@@ -293,9 +287,19 @@ function foodTracker() {
 
             // Load data if authenticated
             if (this.isAuthenticated) {
+                // First load from localStorage for immediate UI response
                 await this.loadData();
-                // Load settings from PocketBase (with localStorage fallback)
+                
+                // Then load settings from PocketBase to get latest values
+                // This will override localStorage values with server data
                 await this.loadSettingsFromPocketBase();
+                
+                console.log('Initialization complete, current state:', {
+                    targets: this.targets,
+                    additionalFatPercent: this.additionalFatPercent,
+                    calorieExpenditure: this.calorieExpenditure,
+                    deltaLbPerWeek: this.deltaLbPerWeek
+                });
             }
 
             this.isLoading = false;
@@ -451,11 +455,11 @@ function foodTracker() {
             }
         },
         
-        // Load data from localStorage
+        // Load data from localStorage (macros only, NOT settings)
         async loadData() {
             const today = new Date().toDateString();
 
-            // Load daily data
+            // Load daily macro data
             const localData = localStorage.getItem('mmm-food-daily');
             if (localData) {
                 const data = JSON.parse(localData);
@@ -473,28 +477,8 @@ function foodTracker() {
                 }
             }
 
-            // Load targets
-            const targetsData = localStorage.getItem('mmm-food-targets');
-            if (targetsData) {
-                this.targets = JSON.parse(targetsData);
-            }
-
-            // Load additional fat percentage
-            const fatPercentData = localStorage.getItem('mmm-food-fat-percent');
-            if (fatPercentData) {
-                this.additionalFatPercent = parseFloat(fatPercentData);
-            }
-
-            // Load additional settings
-            const calorieExpenditureData = localStorage.getItem('mmm-food-calorie-expenditure');
-            if (calorieExpenditureData) {
-                this.calorieExpenditure = parseFloat(calorieExpenditureData);
-            }
-
-            const deltaLbPerWeekData = localStorage.getItem('mmm-food-delta-lb-per-week');
-            if (deltaLbPerWeekData) {
-                this.deltaLbPerWeek = parseFloat(deltaLbPerWeekData);
-            }
+            // Note: Settings are NOT loaded from localStorage - they come from PocketBase only
+            // Default values are used until settings are loaded from server
         },
 
         // Handle date change - auto-save previous day's data
@@ -543,50 +527,67 @@ function foodTracker() {
             }
         },
 
-        // Load settings from PocketBase
+        // Load settings from PocketBase (NO localStorage caching)
         async loadSettingsFromPocketBase() {
             this.isLoadingSettings = true;
             this.settingsError = null;
-            this.usingCachedSettings = false;
 
             try {
                 // Fetch all settings for the current user
                 const records = await pb.collection('mmm_settings').getFullList({
-                    filter: `user_id = "${this.user.id}"`
+                    filter: `user_id = "${this.user.id}"`,
+                    requestKey: null // Disable caching for fresh data
                 });
+
+                console.log(`Loaded ${records.length} settings records from PocketBase`);
 
                 // Map PocketBase keys to app properties
                 const settingsMap = {};
                 records.forEach(record => {
                     settingsMap[record.key] = record.value;
+                    console.log(`  ${record.key} = ${record.value}`);
                 });
 
-                // Update targets
-                this.targets.protein = parseInt(settingsMap['protein_servings'] || this.targets.protein);
-                this.targets.carbs = parseInt(settingsMap['carbohydrate_servings'] || this.targets.carbs);
-                this.targets.fat = parseInt(settingsMap['fat_servings'] || this.targets.fat);
-                this.targets.alcohol = parseInt(settingsMap['alcohol_servings'] || this.targets.alcohol);
+                // Update targets - only update if valid values exist in PocketBase
+                if (records.length > 0) {
+                    if (settingsMap['protein_servings'] !== undefined && settingsMap['protein_servings'] !== null && settingsMap['protein_servings'] !== '') {
+                        this.targets.protein = parseInt(settingsMap['protein_servings']);
+                    }
+                    if (settingsMap['carbohydrate_servings'] !== undefined && settingsMap['carbohydrate_servings'] !== null && settingsMap['carbohydrate_servings'] !== '') {
+                        this.targets.carbs = parseInt(settingsMap['carbohydrate_servings']);
+                    }
+                    if (settingsMap['fat_servings'] !== undefined && settingsMap['fat_servings'] !== null && settingsMap['fat_servings'] !== '') {
+                        this.targets.fat = parseInt(settingsMap['fat_servings']);
+                    }
+                    if (settingsMap['alcohol_servings'] !== undefined && settingsMap['alcohol_servings'] !== null && settingsMap['alcohol_servings'] !== '') {
+                        this.targets.alcohol = parseInt(settingsMap['alcohol_servings']);
+                    }
 
-                // Update additional fat percent
-                this.additionalFatPercent = parseFloat(settingsMap['additional_fat_percent'] || this.additionalFatPercent);
+                    // Update additional fat percent
+                    if (settingsMap['additional_fat_percent'] !== undefined && settingsMap['additional_fat_percent'] !== null && settingsMap['additional_fat_percent'] !== '') {
+                        this.additionalFatPercent = parseFloat(settingsMap['additional_fat_percent']);
+                    }
 
-                // Update additional settings
-                // Only update if value exists in PocketBase, otherwise preserve current value
-                if (settingsMap['calorie_expenditure'] !== undefined && settingsMap['calorie_expenditure'] !== null) {
-                    this.calorieExpenditure = parseFloat(settingsMap['calorie_expenditure']);
+                    // Update additional settings
+                    if (settingsMap['calorie_expenditure'] !== undefined && settingsMap['calorie_expenditure'] !== null && settingsMap['calorie_expenditure'] !== '') {
+                        this.calorieExpenditure = parseFloat(settingsMap['calorie_expenditure']);
+                    }
+                    if (settingsMap['delta_lb_per_week'] !== undefined && settingsMap['delta_lb_per_week'] !== null && settingsMap['delta_lb_per_week'] !== '') {
+                        this.deltaLbPerWeek = parseFloat(settingsMap['delta_lb_per_week']);
+                    }
+
+                    console.log('Settings loaded from PocketBase and applied:', {
+                        targets: this.targets,
+                        additionalFatPercent: this.additionalFatPercent,
+                        calorieExpenditure: this.calorieExpenditure,
+                        deltaLbPerWeek: this.deltaLbPerWeek
+                    });
+                } else {
+                    console.log('No settings found in PocketBase, using app defaults');
                 }
-                if (settingsMap['delta_lb_per_week'] !== undefined && settingsMap['delta_lb_per_week'] !== null) {
-                    this.deltaLbPerWeek = parseFloat(settingsMap['delta_lb_per_week']);
-                }
-
-                // Cache to localStorage
-                this.cacheSettingsToLocalStorage();
-
-                console.log('Settings loaded from PocketBase');
             } catch (error) {
                 console.error('Failed to load settings from PocketBase:', error);
-                this.usingCachedSettings = true;
-                // Fall back to localStorage (already loaded in loadData)
+                this.settingsError = 'Unable to load settings from server. Please check your connection.';
             } finally {
                 this.isLoadingSettings = false;
             }
@@ -645,14 +646,11 @@ function foodTracker() {
             this.settingsError = null;
 
             try {
-                // Save to PocketBase
+                // Save to PocketBase only (no localStorage caching for settings)
                 await this.saveSettingsToPocketBase();
 
-                // Also save to localStorage (cache)
-                this.cacheSettingsToLocalStorage();
-
                 this.showSettings = false;
-                console.log('Settings saved successfully');
+                console.log('Settings saved successfully to PocketBase');
             } catch (error) {
                 console.error('Failed to save settings:', error);
                 this.settingsError = 'Unable to save settings. Please check your connection and try again.';
