@@ -243,11 +243,7 @@
                     <span>Loading settings...</span>
                 </div>
 
-                <!-- Using Cached Settings Warning -->
-                <div x-show="usingCachedSettings && !isLoadingSettings"
-                     class="mb-4 bg-yellow-100 border border-yellow-400 text-yellow-700 px-3 py-2 rounded text-sm">
-                    <p>Using cached settings (offline). Changes will sync when online.</p>
-                </div>
+
 
                 <!-- Sync Status -->
                 <div x-show="!isOnline"
@@ -353,7 +349,6 @@
                         class="w-full bg-blue-500 text-white py-3 rounded-lg mt-4 font-semibold">
                     <span x-show="!isSavingSettings">
                         Save Settings
-                        <span x-show="!isOnline && pendingSyncCount > 0" class="block text-xs font-normal">(Will sync when online)</span>
                     </span>
                     <span x-show="isSavingSettings">Saving...</span>
                 </button>

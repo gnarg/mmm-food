@@ -571,8 +571,13 @@ function foodTracker() {
                 this.additionalFatPercent = parseFloat(settingsMap['additional_fat_percent'] || this.additionalFatPercent);
 
                 // Update additional settings
-                this.calorieExpenditure = parseFloat(settingsMap['calorie_expenditure'] || 0);
-                this.deltaLbPerWeek = parseFloat(settingsMap['delta_lb_per_week'] || 0);
+                // Only update if value exists in PocketBase, otherwise preserve current value
+                if (settingsMap['calorie_expenditure'] !== undefined && settingsMap['calorie_expenditure'] !== null) {
+                    this.calorieExpenditure = parseFloat(settingsMap['calorie_expenditure']);
+                }
+                if (settingsMap['delta_lb_per_week'] !== undefined && settingsMap['delta_lb_per_week'] !== null) {
+                    this.deltaLbPerWeek = parseFloat(settingsMap['delta_lb_per_week']);
+                }
 
                 // Cache to localStorage
                 this.cacheSettingsToLocalStorage();
@@ -587,7 +592,7 @@ function foodTracker() {
             }
         },
 
-        // Save settings to PocketBase
+        // Save settings to PocketBase (synchronous, no offline queuing)
         async saveSettingsToPocketBase() {
             // Map of app properties to PocketBase keys
             // Ensure numeric values are properly coerced to numbers (in case input binds as string)
@@ -600,17 +605,6 @@ function foodTracker() {
                 { key: 'calorie_expenditure', value: Number(this.calorieExpenditure).toString() },
                 { key: 'delta_lb_per_week', value: Number(this.deltaLbPerWeek).toString() }
             ];
-
-            // Queue settings if offline
-            if (!this.isOnline && this.isAuthenticated) {
-                const queueId = this.getNextQueueId();
-                this.addToSyncQueue({
-                    type: 'settings',
-                    data: settingsToSave,
-                    queueId: queueId
-                });
-                throw new Error('OFFLINE_QUEUED');
-            }
 
             // Save each setting (upsert)
             for (const setting of settingsToSave) {
@@ -645,13 +639,13 @@ function foodTracker() {
             await this.loadSettingsFromPocketBase();
         },
 
-        // Save settings
+        // Save settings (synchronous, requires online connection)
         async saveSettings() {
             this.isSavingSettings = true;
             this.settingsError = null;
 
             try {
-                // Save to PocketBase first
+                // Save to PocketBase
                 await this.saveSettingsToPocketBase();
 
                 // Also save to localStorage (cache)
@@ -661,14 +655,7 @@ function foodTracker() {
                 console.log('Settings saved successfully');
             } catch (error) {
                 console.error('Failed to save settings:', error);
-                
-                // Check if error is offline queued
-                if (error.message === 'OFFLINE_QUEUED') {
-                    this.cacheSettingsToLocalStorage();
-                    this.settingsError = 'Saved offline. Will sync when online.';
-                } else {
-                    this.settingsError = 'Unable to save settings. Please check your connection and try again.';
-                }
+                this.settingsError = 'Unable to save settings. Please check your connection and try again.';
             } finally {
                 this.isSavingSettings = false;
             }
