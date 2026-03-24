@@ -305,7 +305,7 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Calorie Expenditure</label>
                         <div class="flex gap-2">
-                            <input type="number" inputmode="numeric" x-model="calorieExpenditure" min="0" step="1"
+                            <input type="number" inputmode="numeric" x-model.number="calorieExpenditure" min="0" step="1"
                                    class="flex-1 border border-gray-300 rounded-lg px-3 py-2">
                             <button @click="recomputeCalorieExpenditure()"
                                     :disabled="isRecomputing"
@@ -326,7 +326,7 @@
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Delta lb/week</label>
-                        <input type="number" inputmode="decimal" x-model="deltaLbPerWeek" step="0.1"
+                        <input type="number" inputmode="decimal" x-model.number="deltaLbPerWeek" step="0.1"
                                class="w-full border border-gray-300 rounded-lg px-3 py-2">
                     </div>
                 </div>

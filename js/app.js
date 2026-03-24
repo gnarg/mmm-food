@@ -590,14 +590,15 @@ function foodTracker() {
         // Save settings to PocketBase
         async saveSettingsToPocketBase() {
             // Map of app properties to PocketBase keys
+            // Ensure numeric values are properly coerced to numbers (in case input binds as string)
             const settingsToSave = [
-                { key: 'protein_servings', value: this.targets.protein.toString() },
-                { key: 'carbohydrate_servings', value: this.targets.carbs.toString() },
-                { key: 'fat_servings', value: this.targets.fat.toString() },
-                { key: 'alcohol_servings', value: this.targets.alcohol.toString() },
-                { key: 'additional_fat_percent', value: this.additionalFatPercent.toString() },
-                { key: 'calorie_expenditure', value: this.calorieExpenditure.toString() },
-                { key: 'delta_lb_per_week', value: this.deltaLbPerWeek.toString() }
+                { key: 'protein_servings', value: Number(this.targets.protein).toString() },
+                { key: 'carbohydrate_servings', value: Number(this.targets.carbs).toString() },
+                { key: 'fat_servings', value: Number(this.targets.fat).toString() },
+                { key: 'alcohol_servings', value: Number(this.targets.alcohol).toString() },
+                { key: 'additional_fat_percent', value: Number(this.additionalFatPercent).toString() },
+                { key: 'calorie_expenditure', value: Number(this.calorieExpenditure).toString() },
+                { key: 'delta_lb_per_week', value: Number(this.deltaLbPerWeek).toString() }
             ];
 
             // Queue settings if offline
