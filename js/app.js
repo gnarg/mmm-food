@@ -640,6 +640,16 @@ function foodTracker() {
             await this.loadSettingsFromPocketBase();
         },
 
+        // Toggle settings view with proper async handling
+        async toggleSettingsView() {
+            if (!this.showSettings) {
+                // Opening settings view - load fresh data first
+                await this.refreshSettings();
+            }
+            // Toggle the view
+            this.showSettings = !this.showSettings;
+        },
+
         // Save settings (synchronous, requires online connection)
         async saveSettings() {
             this.isSavingSettings = true;
